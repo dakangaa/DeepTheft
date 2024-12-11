@@ -102,8 +102,8 @@ class RaplLoader(object):
     def preprocess(self):
         train_x, train_y = [], []
         val_x, val_y = [], []
-        x = h5py.File(r'../datasets/data.h5', 'r')
-        y = h5py.File(r'../datasets/hp.h5', 'r')
+        x = h5py.File(r'../../autodl-tmp/datasets/data.h5', 'r')
+        y = h5py.File(r'../../autodl-tmp/datasets/hp.h5', 'r')
 
         for k in x['data'].keys():
             if k.split(')')[1] == '224':

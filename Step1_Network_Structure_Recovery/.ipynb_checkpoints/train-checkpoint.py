@@ -7,6 +7,8 @@ from dataset import RaplLoader
 import Levenshtein
 import os
 
+
+
 def levenshtein_accuracy(predict, targets, labels):
     def decode(result_not_allign):
         _, indices = result_not_allign.max(-1)
@@ -158,7 +160,6 @@ def train():
 
 
 if __name__ == '__main__':
-
     parser = argparse.ArgumentParser(description='DeepTheft Training')#L:设置运行参数
     parser.add_argument('--lr', default=0.01, type=float, help='learning rate')
     parser.add_argument('--batch_size', default=32, type=int, help='mini-batch size')

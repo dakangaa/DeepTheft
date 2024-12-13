@@ -20,9 +20,10 @@ samples = [256, 256, 2592, 2592, 2728, 2728]
 test_samples = [26, 26, 268, 268, 282, 282]
 test_index = []
 np.random.seed(0)
+# 选取valid集
 for i in range(len(samples)):
     index = np.random.choice(samples[i], test_samples[i], replace=False)
-    test_index.append(index)
+    test_index.append(index) #每一类的测试集都在同一个数组中
 
 
 class Rapl(torch.utils.data.Dataset):
@@ -69,10 +70,11 @@ class RaplLoader(object):
         self.train, self.val = self.preprocess()
 
     def preprocess(self):
+        # 生成训练集和验证集
         train_x, train_y = [], []
         val_x, val_y = [], []
         # 数据路径
-        data = h5py.File(r'../../autodl-tmp/dataset/data.h5', 'r')
+        data = h5py.File(r'../autodl-tmp/dataset/data.h5', 'r')
         for k in data['data'].keys():
             test_indexes = test_index[models[k.split(')')[0]]]
             i = int(k.split(')')[-1])
@@ -82,6 +84,8 @@ class RaplLoader(object):
             else:
                 train_x.append(data['data'][k][:])
                 train_y.append(data['position'][k][:])
+            print(i)
+        print("finish")
         return (train_x, train_y), (val_x, val_y)
 
     def loader(self, data, shuffle=False, transform=None, target_transform=None):

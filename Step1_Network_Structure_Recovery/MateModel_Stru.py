@@ -104,7 +104,7 @@ class FinalBlock(nn.Module):
         return out
 
 
-class Model(nn.Module):
+class Model(nn.Module): 
     def __init__(self, num_classes, input_channels=2):
         super().__init__()
         n = 8

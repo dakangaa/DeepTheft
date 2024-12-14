@@ -6,6 +6,35 @@ import MateModel_Stru
 from dataset import RaplLoader
 import Levenshtein
 import os
+import time
+import numpy as np
+
+class Timer:
+    """Record multiple running times."""
+    def __init__(self):
+        """Defined in :numref:`sec_minibatch_sgd`"""
+        self.times = []
+
+    def start(self):
+        """Start the timer."""
+        self.tik = time.time()
+
+    def stop(self):
+        """Stop the timer and record the time in a list."""
+        self.times.append(time.time() - self.tik)
+        return self.times[-1]
+
+    def avg(self):
+        """Return the average time."""
+        return sum(self.times) / len(self.times)
+
+    def sum(self):
+        """Return the sum of time."""
+        return sum(self.times)
+
+    def cumsum(self):
+        """Return the accumulated time."""
+        return np.array(self.times).cumsum().tolist()
 
 def levenshtein_accuracy(predict, targets, labels):
     def decode(result_not_allign):
@@ -65,11 +94,12 @@ def UPloss(predicts, targets, position):
     output = output.mean()
     return output
 
-
 def train_step(epoch, loader):
     net.train()
-
-    train_loss = 0
+    
+    timer = Timer()
+    timer.start()
+    train_loss = 0 # lossSum
     acc, levenshtein_acc = 0, 0
     total, correct = 0, 0
     for batch_idx, (inputs, targets, position) in enumerate(loader):
@@ -77,22 +107,25 @@ def train_step(epoch, loader):
 
         optimizer.zero_grad()
         out = net(inputs)
-        loss = CEloss(out, targets) + UPloss(out, targets, position)
+        loss = CEloss(out, targets) + UPloss(out, targets, position)# S:UPLoss中的position
         loss.backward()
         optimizer.step()
 
         train_loss += loss.item()
 
-        _, predicted = out.max(1)
-        labeled = (targets >= 0)
+        _, predicted = out.max(1) # S:独热编码转标签编码
+        labeled = (targets >= 0) #mask:填充部分为0
         total += labeled.sum()
         correct += ((predicted == targets) * labeled).sum()
-        acc = 100. * correct / total
+        acc = 100. * correct / total # 对样本点的准确率
 
-        if batch_idx % 10 == 0:
-            logs = '{} - Epoch: [{}][{}/{}]\t Loss: {:.3f}\t ACC: {:.3f}\t'
-            print(logs.format('TRAIN', epoch, batch_idx,
-                              len(loader), train_loss / (batch_idx + 1), acc))
+        if (batch_idx+1) % 10 == 0:
+            timer.stop()
+            logs = '{} - Epoch: [{}][{}/{}]\t Loss: {:.3f}\t ACC(SA): {:.3f}\t {:.3f}samples/sec'
+            print(logs.format('TRAIN', epoch, batch_idx+1,
+                              len(loader), train_loss / (batch_idx + 1), acc, 
+                              (batch_idx+1) * args.batch_size / timer.sum()))
+            timer.start()
     return train_loss / len(loader), acc
 
 
@@ -126,7 +159,7 @@ def eval_step(loader):
 
     seg_acc /= seg_n
     levenshtein_acc /= levenshtein_n / 100.
-    logs = 'CELoss: {:.3f}\t UPLoss: {:.3f}\t SA: {:.3f}%\t LDA: {:.3f}%\t'
+    logs = 'VAL - CELoss: {:.3f}\t UPLoss: {:.3f}\t SA: {:.3f}%\t LDA: {:.3f}%\t'
     print(logs.format(eval_ce_loss / len(loader), eval_up_loss / len(loader), seg_acc, levenshtein_acc))
     return (eval_ce_loss+eval_up_loss) / len(loader), levenshtein_acc
 
@@ -145,12 +178,13 @@ def save_step(epoch, acc):
         torch.save(state, args.path + '/ckpt.pth')
         best_acc = acc
     else:
-        print()
+        print("!!!!!!!!!!!!!!!精确度不上升, 重新训练")
 
 
 def train():
+    
     for epoch in range(start_epoch, start_epoch+args.epochs):
-        epoch += 1
+        # M：epoch += 1
         train_loss, train_acc = train_step(epoch, trainloader)
         val_loss, val_acc = eval_step(valloader)
         save_step(epoch, [val_acc])
@@ -173,13 +207,18 @@ if __name__ == '__main__':
     else:
         device = torch.device('cpu')
 
-    print('Loading data...')
-    data = RaplLoader(batch_size=args.batch_size, num_workers=args.workers) #T
+    print('Loading data...') # 加载数据到内存中
+    timer_load_data = Timer()
+    timer_load_data.start()
+    data = RaplLoader(batch_size=args.batch_size, num_workers=args.workers) 
     trainloader, valloader = data.get_loader()
-
-    net = MateModel_Stru.Model(num_classes=data.num_classes).to(device)
+    timer_load_data.stop()
+    print(f"Finish loading: {timer_load_data.sum():.3f} sec")
+    # 创建新网络
+    net = MateModel_Stru.Model(num_classes=data.num_classes).to(device) # S
+    # 恢复参数
     if args.resume:
-        checkpoint = torch.load(args.path + '/ckpt.pth')
+        checkpoint = torch.load(args.path + '/ckpt.pth', weights_only=False) # ckpt: checkpoint
         net.load_state_dict(checkpoint['net']) #L：state_dict
         best_acc = checkpoint['acc']
         start_epoch = checkpoint['epoch']
@@ -187,7 +226,7 @@ if __name__ == '__main__':
         best_acc = [0]
         start_epoch = 0
 
-    CEloss = nn.CrossEntropyLoss(ignore_index=-1)#L:ignore_index?
+    CEloss = nn.CrossEntropyLoss(ignore_index=-1) # -1为填充，不考虑y中为-1的样本点
 
     optimizer = torch.optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)

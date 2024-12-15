@@ -47,7 +47,7 @@ class UpBlock(nn.Module):
             nn.Conv1d(64, in_channels, kernel_size=1, bias=False),
             nn.BatchNorm1d(in_channels),
             nn.ReLU(inplace=True),
-        )
+        ) # pointwise:逐点卷积(1*1卷积块)
         self.pointwise = nn.Sequential(
             nn.Conv1d(in_channels*3, in_channels, kernel_size=1, bias=False),
             nn.BatchNorm1d(in_channels),
@@ -85,8 +85,8 @@ class MiddleBlock(nn.Module):
         conv_x = self.block(x)
 
         lstm_x = self.pointwise1(conv_x)
-        lstm_x, _ = self.lstm(lstm_x.permute(2, 0, 1))
-        lstm_x = self.pointwise2(lstm_x.permute(1, 2, 0))
+        lstm_x, _ = self.lstm(lstm_x.permute(2, 0, 1)) # ?:LSTM的输入和输出
+        lstm_x = self.pointwise2(lstm_x.permute(1, 2, 0)) 
 
         return lstm_x, conv_x
 

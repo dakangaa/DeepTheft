@@ -106,25 +106,24 @@ def train_step(epoch, loader):
         inputs, targets = inputs.to(device).float(), targets.to(device).long()
 
         optimizer.zero_grad()
-        out = net(inputs)
-        loss = CEloss(out, targets) + UPloss(out, targets, position)# S:UPLoss中的position
+        out = net(inputs) # out:(batch, type/channel, sample_len)
+        loss = CEloss(out, targets) + UPloss(out, targets, position)
         loss.backward()
         optimizer.step()
 
         train_loss += loss.item()
 
-        _, predicted = out.max(1) # S:独热编码转标签编码
+        _, predicted = out.max(1) # 独热编码转类别编码
         labeled = (targets >= 0) #mask:填充部分为0
         total += labeled.sum()
         correct += ((predicted == targets) * labeled).sum()
         acc = 100. * correct / total # 对样本点的准确率
 
         if (batch_idx+1) % 10 == 0:
-            timer.stop()
             logs = '{} - Epoch: [{}][{}/{}]\t Loss: {:.3f}\t ACC(SA): {:.3f}\t {:.3f}samples/sec'
-            print(logs.format('TRAIN', epoch, batch_idx+1,
-                              len(loader), train_loss / (batch_idx + 1), acc, 
-                              (batch_idx+1) * args.batch_size / timer.sum()))
+            print(logs.format('TRAIN', epoch, batch_idx+1, len(loader), 
+                              train_loss / (batch_idx + 1), acc, 
+                              10 * args.batch_size / timer.stop()))
             timer.start()
     return train_loss / len(loader), acc
 
@@ -215,7 +214,7 @@ if __name__ == '__main__':
     timer_load_data.stop()
     print(f"Finish loading: {timer_load_data.sum():.3f} sec")
     # 创建新网络
-    net = MateModel_Stru.Model(num_classes=data.num_classes).to(device) # S
+    net = MateModel_Stru.Model(num_classes=data.num_classes).to(device) # ? :LSTM的输出和输出
     # 恢复参数
     if args.resume:
         checkpoint = torch.load(args.path + '/ckpt.pth', weights_only=False) # ckpt: checkpoint

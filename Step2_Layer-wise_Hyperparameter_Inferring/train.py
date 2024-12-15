@@ -4,7 +4,7 @@ import torch.backends.cudnn as cudnn
 import torch.nn.functional as F
 import os
 import argparse
-from models import MateModel_Hyper
+import MateModel_Hyper
 from dataset import RaplLoader
 
 

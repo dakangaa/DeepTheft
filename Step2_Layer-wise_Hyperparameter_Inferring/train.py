@@ -50,9 +50,9 @@ class F1_score(nn.Module):
         assert y_pred.ndim == 2
         assert y_true.ndim == 1
         y_true = F.one_hot(y_true, self.num_classes)
-        y_pred = F.one_hot(torch.argmax(y_pred, dim=1), self.num_classes)
+        y_pred = F.one_hot(torch.argmax(y_pred, dim=1), self.num_classes)？argmax
 
-        self.tp += (y_true * y_pred).sum(0)
+        self.tp += (y_true * y_pred).sum(0)？0，为什么要保持二维
         self.tn += ((1 - y_true) * (1 - y_pred)).sum(0)
         self.fp += ((1 - y_true) * y_pred).sum(0)
         self.fn += (y_true * (1 - y_pred)).sum(0)
@@ -64,7 +64,7 @@ class F1_score(nn.Module):
         accuracy = accuracy.item() * self.num_classes
 
         f1 = 2 * (precision * recall) / (precision + recall + self.epsilon)
-        f1 = f1.mean().item()
+        f1 = f1.mean().item()？mean
         return accuracy*100., precision.mean().item()*100., recall.mean().item()*100., f1*100.
 
 
@@ -74,7 +74,7 @@ def train_step(epoch):
     timer = Timer()
     timer.start()
     train_loss, accuracy, F1 = 0, 0, 0
-    f1.reset()
+    f1.reset()？
     for batch_idx, (inputs, targets) in enumerate(trainloader):
         inputs, targets = inputs.to(device).float(), targets.to(device).long()
 

@@ -1,0 +1,31 @@
+{
+    "configurations": [
+        {
+            "name": "Python Debugger",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+        },
+        {
+            "name": "Python Debugger: Step 2",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "args": [
+                "--H", "kernel_size",       // option: kernel_size, stride, out_channels
+                "--resume"
+            ]
+        },
+        {
+            "name": "Python Debugger: Step 1",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "args": [
+                "--batch_size", "85",
+                "--resume" 
+               // "--workers", "3",
+            ]
+        }
+    ]
+}

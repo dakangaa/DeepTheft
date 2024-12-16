@@ -6,7 +6,35 @@ import os
 import argparse
 import MateModel_Hyper
 from dataset import RaplLoader
+import time
+import numpy as np
 
+class Timer:
+    """Record multiple running times."""
+    def __init__(self):
+        """Defined in :numref:`sec_minibatch_sgd`"""
+        self.times = []
+
+    def start(self):
+        """Start the timer."""
+        self.tik = time.time()
+
+    def stop(self):
+        """Stop the timer and record the time in a list."""
+        self.times.append(time.time() - self.tik)
+        return self.times[-1]
+
+    def avg(self):
+        """Return the average time."""
+        return sum(self.times) / len(self.times)
+
+    def sum(self):
+        """Return the sum of time."""
+        return sum(self.times)
+
+    def cumsum(self):
+        """Return the accumulated time."""
+        return np.array(self.times).cumsum().tolist()
 
 class F1_score(nn.Module):
     def __init__(self, num_classes, epsilon=1e-7):
@@ -43,6 +71,8 @@ class F1_score(nn.Module):
 def train_step(epoch):
     net.train()
 
+    timer = Timer()
+    timer.start()
     train_loss, accuracy, F1 = 0, 0, 0
     f1.reset()
     for batch_idx, (inputs, targets) in enumerate(trainloader):
@@ -57,10 +87,12 @@ def train_step(epoch):
         train_loss += loss.item()
         accuracy, p, r, F1 = f1(outputs, targets)
 
-        if batch_idx % 100 == 0:
-            logs = '{} - Epoch: [{}][{}/{}]\t Loss: {:.3f}\t Acc: {:.3f}\t P: {:.3f}\t R: {:.3f}\t F1: {:.3f}\t'
-            print(logs.format('TRAIN', epoch, batch_idx, len(trainloader), train_loss / (batch_idx + 1), accuracy,
-                              p, r, F1))
+        timer.stop()
+        if (batch_idx+1) % 100 == 0:
+            logs = '{} - Epoch: [{}][{}/{}]\t Loss: {:.3f}\t Acc: {:.3f}\t P: {:.3f}\t R: {:.3f}\t F1: {:.3f}\t {:.3f}samples/sec'
+            print(logs.format('TRAIN', epoch, (batch_idx+1), len(trainloader), train_loss / (batch_idx + 1), accuracy,
+                              p, r, F1, (batch_idx+1) * args.batch_size / timer.sum()))
+            timer.start()
     return train_loss / len(trainloader), F1
 
 
@@ -91,6 +123,7 @@ def save_step(epoch, acc):
         state = {
             'net': net.state_dict(),
             'epoch': epoch,
+            "acc": acc  
         }
         if not os.path.exists(args.path):
             os.makedirs(args.path)
@@ -117,7 +150,7 @@ if __name__ == '__main__':
     parser.add_argument('--path', default='results/MateModel_Hyper', type=str, help='save_path')
     parser.add_argument('--workers', default=0, type=int, help='number of data loading workers')
     parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
-    parser.add_argument("--HyperParameter", "-H", default="kernel_size", type=str, help="训练的超参数")
+    parser.add_argument("--HyperParameter", "-H", default="kernel_size", type=str, help="训练的超参数")   # option: kernel_size, stride, out_channels
     args = parser.parse_args()
     if torch.cuda.is_available():
         device = torch.device('cuda')
@@ -131,7 +164,7 @@ if __name__ == '__main__':
     net = MateModel_Hyper.Model(num_classes=data.num_classes).to(device)
     if args.resume:
         print('Loading...')
-        checkpoint = torch.load(args.path + '/' + args.HyperParameter + '_ckpt.pth')
+        checkpoint = torch.load(args.path + '/' + args.HyperParameter + '_ckpt.pth', weights_only=True)
         net.load_state_dict(checkpoint['net'])
         best_acc = checkpoint['acc']
         start_epoch = checkpoint['epoch']

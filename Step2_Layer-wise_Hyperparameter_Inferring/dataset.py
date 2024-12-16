@@ -96,13 +96,15 @@ class RaplLoader(object):
         self.num_workers = num_workers
         self.num_classes = {'out_channels': 6, 'kernel_size': 3, 'stride': 2}[mode]
         self.train, self.val = self.preprocess()
+        # train: 224input_size 样本的 conv层 三个RAPL通道
+        # val: 对应的一个超参数kernel_size(可调)
 
         self.transform = transforms.Compose([
-            Normalization(),
-            Resize(1024),
+            Normalization(), # 归一化
+            Resize(1024), # 子采样缩放到1024长度
         ]) # 对x处理的模块
         self.target_transform = transforms.Compose([
-            ToTargets(mode, self.label),#对目标值进行缩放
+            ToTargets(mode, self.label),#对目标值进行缩放(K, S, C_o)
         ]) # 对y处理的模块
 
     def preprocess(self):
@@ -124,7 +126,7 @@ class RaplLoader(object):
                 n = int(k.split(')')[-1]) # 当前样本index
                 hp_index = 0
                 for (i, j) in pos:
-                    if d[:, -1][i] == 0: # 0:只取卷积层
+                    if d[:, -1][i] == 0: # ? 0:只取卷积层
                         if n in test_indexes:
                             val_x.append(d[i:j + 1, :-1])# x是三个RAPL通道
                             val_y.append(hp[hp_index])  # 只有卷积层的超参数
@@ -137,7 +139,7 @@ class RaplLoader(object):
         return (train_x, train_y), (val_x, val_y)
 
     def loader(self, data, shuffle=False, transform=None, target_transform=None):
-        dataset = Rapl(data, transform=transform, target_transform=target_transform)
+        dataset = Rapl(data, transform=transform, target_transform=target_transform) # 自定义一个DataSet类
         dataloader = torch.utils.data.DataLoader(
             dataset, batch_size=self.batch_size, shuffle=shuffle, num_workers=self.num_workers)
         return dataloader

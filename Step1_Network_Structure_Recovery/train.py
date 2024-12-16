@@ -117,7 +117,7 @@ def train_step(epoch, loader):
         labeled = (targets >= 0) #mask:填充部分为0
         total += labeled.sum()
         correct += ((predicted == targets) * labeled).sum()
-        acc = 100. * correct / total # 对样本点的准确率
+        acc = 100. * correct / total # 对样本点的准确率(SA)
 
         if (batch_idx+1) % 10 == 0:
             logs = '{} - Epoch: [{}][{}/{}]\t Loss: {:.3f}\t ACC(SA): {:.3f}\t {:.3f}samples/sec'
@@ -160,7 +160,7 @@ def eval_step(loader):
     levenshtein_acc /= levenshtein_n / 100.
     logs = 'VAL - CELoss: {:.3f}\t UPLoss: {:.3f}\t SA: {:.3f}%\t LDA: {:.3f}%\t'
     print(logs.format(eval_ce_loss / len(loader), eval_up_loss / len(loader), seg_acc, levenshtein_acc))
-    return (eval_ce_loss+eval_up_loss) / len(loader), levenshtein_acc
+    return (eval_ce_loss+eval_up_loss) / len(loader), (levenshtein_acc + seg_acc) / 2
 
 
 def save_step(epoch, acc):
@@ -177,15 +177,15 @@ def save_step(epoch, acc):
         torch.save(state, args.path + '/ckpt.pth')
         best_acc = acc
     else:
-        print("精确度未上升")
+        print("(LA+SA)/2 精确度未上升")
 
 
 def train():
     
     for epoch in range(start_epoch, start_epoch+args.epochs):
         # M：epoch += 1
-        train_loss, train_acc = train_step(epoch, trainloader)
-        val_loss, val_acc = eval_step(valloader)
+        train_loss, train_acc = train_step(epoch, trainloader) # acc:SA
+        val_loss, val_acc = eval_step(valloader) # acc;LA
         save_step(epoch, [val_acc])
         scheduler.step()
 

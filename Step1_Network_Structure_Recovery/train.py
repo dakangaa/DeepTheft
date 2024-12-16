@@ -177,7 +177,7 @@ def save_step(epoch, acc):
         torch.save(state, args.path + '/ckpt.pth')
         best_acc = acc
     else:
-        print("!!!!!!!!!!!!!!!精确度不上升, 重新训练")
+        print("精确度未上升")
 
 
 def train():

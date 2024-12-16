@@ -37,7 +37,7 @@ class Rapl(torch.utils.data.Dataset):
 
     def __getitem__(self, index):
         x, y = self.x[index], self.y[index]
-        feature, target, label = x[:, 1:3], x[:, 3:4], y # ??? 第一列数据是什么
+        feature, target, label = x[:, 1:3], x[:, 3:4], y # 第一列数据是另外一个通道的数据, 在训练MetaModel_Hyper时会用
         feature = self.transform(feature) if self.transform is not None else feature
         target = self.target_transform(target) if self.target_transform is not None else target
         return feature, target, label
@@ -50,7 +50,7 @@ def collate_fn_batch(data):
     """
     定义如何生成一个batch
     左右填充xy为16的倍数, x用0填充, y用-1填充
-    z没有改变 ?为什么
+    z没有改变: 在计算loss时会把padding去掉再计算
     """
     max_length = max([_x.shape[0] for (_x, _y, _z) in data])
     max_length += 16 - max_length % 16
@@ -66,7 +66,6 @@ def collate_fn_batch(data):
         x = _x.unsqueeze(0) if i == 0 else torch.concat([x, _x.unsqueeze(0)])
         y = _y if i == 0 else torch.concat([y, _y])
         z.append(_z)
-        # ?为什么x需要增加一维, yz不需要?
 
     return x, y, z
 

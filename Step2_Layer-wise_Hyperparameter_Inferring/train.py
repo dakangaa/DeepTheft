@@ -94,15 +94,15 @@ def save_step(epoch, acc):
         }
         if not os.path.exists(args.path):
             os.makedirs(args.path)
-        torch.save(state, args.path + '/ckpt.pth')
+        torch.save(state, args.path + '/' + args.HyperParameter + '_ckpt.pth')
         best_acc = acc
     else:
-        print()
+        print("此次epoch, 精确度没有提高")
 
 
 def train():
     for epoch in range(start_epoch, start_epoch+args.epochs):
-        epoch += 1
+        # epoch += 1
         train_loss, train_acc = train_step(epoch)
         val_loss, val_acc = eval_step(epoch, "VAL", valloader)
         save_step(epoch, [val_acc])
@@ -117,6 +117,7 @@ if __name__ == '__main__':
     parser.add_argument('--path', default='results/MateModel_Hyper', type=str, help='save_path')
     parser.add_argument('--workers', default=0, type=int, help='number of data loading workers')
     parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
+    parser.add_argument("--HyperParameter", "-H", default="kernel_size", type=str, help="训练的超参数")
     args = parser.parse_args()
     if torch.cuda.is_available():
         device = torch.device('cuda')
@@ -124,13 +125,13 @@ if __name__ == '__main__':
     else:
         device = torch.device('cpu')
 
-    data = RaplLoader(batch_size=args.batch_size, num_workers=args.workers, mode='kernel_size')
+    data = RaplLoader(batch_size=args.batch_size, num_workers=args.workers, mode=args.HyperParameter) # ?mode:一次训练一个超参数模型?
     trainloader, valloader = data.get_loader()
 
     net = MateModel_Hyper.Model(num_classes=data.num_classes).to(device)
     if args.resume:
         print('Loading...')
-        checkpoint = torch.load(args.path + '/ckpt.pth')
+        checkpoint = torch.load(args.path + '/' + args.HyperParameter + '_ckpt.pth')
         net.load_state_dict(checkpoint['net'])
         best_acc = checkpoint['acc']
         start_epoch = checkpoint['epoch']

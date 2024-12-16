@@ -50,21 +50,21 @@ class F1_score(nn.Module):
         assert y_pred.ndim == 2
         assert y_true.ndim == 1
         y_true = F.one_hot(y_true, self.num_classes)
-        y_pred = F.one_hot(torch.argmax(y_pred, dim=1), self.num_classes)？argmax
+        y_pred = F.one_hot(torch.argmax(y_pred, dim=1), self.num_classes)
 
-        self.tp += (y_true * y_pred).sum(0)？0，为什么要保持二维
+        self.tp += (y_true * y_pred).sum(0)
         self.tn += ((1 - y_true) * (1 - y_pred)).sum(0)
         self.fp += ((1 - y_true) * y_pred).sum(0)
         self.fn += (y_true * (1 - y_pred)).sum(0)
 
-        precision = self.tp / (self.tp + self.fp + self.epsilon)
-        recall = self.tp / (self.tp + self.fn + self.epsilon)
+        precision = self.tp / (self.tp + self.fp + self.epsilon) # 精确率：预测为正的样本中预测正确的比例
+        recall = self.tp / (self.tp + self.fn + self.epsilon)  # 召回率：实际为正的样本中预测正确的比例
 
         accuracy = self.tp.sum() / (self.tp.sum() + self.tn.sum() + self.fp.sum() + self.fn.sum())
-        accuracy = accuracy.item() * self.num_classes
+        accuracy = accuracy.item() * self.num_classes # 乘以类别？
 
         f1 = 2 * (precision * recall) / (precision + recall + self.epsilon)
-        f1 = f1.mean().item()？mean
+        f1 = f1.mean().item() #类别与样本无关，每一种类别出现的概率是一样的
         return accuracy*100., precision.mean().item()*100., recall.mean().item()*100., f1*100.
 
 
@@ -172,7 +172,7 @@ if __name__ == '__main__':
         best_acc = [0]
         start_epoch = 0
 
-    CEloss = nn.CrossEntropyLoss()
+    CEloss = nn.CrossEntropyLoss() 
     f1 = F1_score(num_classes=data.num_classes)
 
     optimizer = torch.optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)

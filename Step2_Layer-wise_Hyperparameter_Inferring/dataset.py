@@ -12,11 +12,7 @@ models = {'vgg':0, 'vgg_bn':1, 'resnet_basicblock':2, 'resnet_bottleneck':3, 'cu
 samples = [256, 256, 2592, 2592, 2728, 2728]
 # train_samples = [12, 12, 116, 116, 122, 122]
 test_samples = [26, 26, 268, 268, 282, 282]
-test_index = []
-np.random.seed(0)
-for i in range(len(samples)):
-    index = np.random.choice(samples[i], test_samples[i], replace=False)
-    test_index.append(index)
+
 # 似乎没用:
 # train_index = [] 
 # np.random.seed(1)
@@ -88,6 +84,11 @@ class Rapl(torch.utils.data.Dataset):
 
 class RaplLoader(object):
     def __init__(self, batch_size, mode, num_workers=0):
+        test_index = []
+np.random.seed(0)
+for i in range(len(samples)):
+    index = np.random.choice(samples[i], test_samples[i], replace=False)
+    test_index.append(index)
         self.label = {'in_channels': 0, 'out_channels': 1, 'kernel_size': 2,
                       'stride': 3, 'padding': 4, 'dilation': 5,
                       'groups': 6, 'input_size': 7, 'output_size': 8}[mode] #mode直接对字典取值

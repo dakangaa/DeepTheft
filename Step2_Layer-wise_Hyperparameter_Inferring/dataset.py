@@ -83,12 +83,15 @@ class Rapl(torch.utils.data.Dataset):
 
 
 class RaplLoader(object):
-    def __init__(self, batch_size, mode, num_workers=0):
-        test_index = []
-np.random.seed(0)
-for i in range(len(samples)):
-    index = np.random.choice(samples[i], test_samples[i], replace=False)
-    test_index.append(index)
+    def __init__(self, batch_size, mode, num_workers=0, test_index=None, is_test=False, input_size="224"):
+        if test_index == None:
+            self.test_index = []
+            np.random.seed(0)
+            for i in range(len(samples)):
+                index = np.random.choice(samples[i], test_samples[i], replace=False)
+                self.test_index.append(index)
+        else:
+            self.test_index = test_index
         self.label = {'in_channels': 0, 'out_channels': 1, 'kernel_size': 2,
                       'stride': 3, 'padding': 4, 'dilation': 5,
                       'groups': 6, 'input_size': 7, 'output_size': 8}[mode] #mode直接对字典取值
@@ -96,10 +99,15 @@ for i in range(len(samples)):
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.num_classes = {'out_channels': 6, 'kernel_size': 3, 'stride': 2}[mode]
-        self.train, self.val = self.preprocess()
-        # train: 224input_size 样本的 conv层 三个RAPL通道
-        # val: 对应的一个超参数kernel_size(可调)
-
+        self.is_test = is_test
+        self.input_size = input_size # 样本的input_size
+        if not self.is_test:
+            self.train, self.val = self.preprocess()
+            # train: 224input_size 样本的 conv层 三个RAPL通道
+            # val: 对应的一个超参数kernel_size(可调)
+        else:
+            self.test = self.preprocess()
+                
         self.transform = transforms.Compose([
             Normalization(), # 归一化
             Resize(1024), # 子采样缩放到1024长度
@@ -107,15 +115,17 @@ for i in range(len(samples)):
         self.target_transform = transforms.Compose([
             ToTargets(mode, self.label),#对目标值进行缩放(K, S, C_o)
         ]) # 对y处理的模块
-
+        
+        
     def preprocess(self):
+        # !需要外部调用
         train_x, train_y = [], []
         val_x, val_y = [], []
         x = h5py.File(r'../autodl-tmp/dataset/data.h5', 'r')
         y = h5py.File(r'../autodl-tmp/dataset/hp.h5', 'r')
 
         for k in x['data'].keys():
-            if k.split(')')[1] == '224': # A：只对输入大小为224的样本训练
+            if k.split(')')[1] == self.input_size: # A：只对输入大小为224的样本训练
                 d = x['data'][k][:]
                 pos = x['position'][k][:]
                 hp = y[k][:]
@@ -123,7 +133,7 @@ for i in range(len(samples)):
                 hp = hp[hp[:, -1] != -1]
                 #去除与输入通道数无关或与输出形状无关的层(?去掉MP和Linear)
                 
-                test_indexes = test_index[models[k.split(')')[0]]] # 训练样本index数组
+                test_indexes = self.test_index[models[k.split(')')[0]]] # 训练样本index数组
                 n = int(k.split(')')[-1]) # 当前样本index
                 hp_index = 0
                 for (i, j) in pos:
@@ -136,8 +146,10 @@ for i in range(len(samples)):
                             train_y.append(hp[hp_index])
                         hp_index += 1
                 assert hp_index == len(hp)
-
-        return (train_x, train_y), (val_x, val_y)
+        if self.is_test:
+            return train_x + val_x, train_y + val_y
+        else:
+            return (train_x, train_y), (val_x, val_y)
 
     def loader(self, data, shuffle=False, transform=None, target_transform=None):
         dataset = Rapl(data, transform=transform, target_transform=target_transform) # 自定义一个DataSet类
@@ -146,6 +158,11 @@ for i in range(len(samples)):
         return dataloader
 
     def get_loader(self):
-        trainloader = self.loader(self.train, shuffle=True, transform=self.transform, target_transform=self.target_transform)
-        valloader = self.loader(self.val, transform=self.transform, target_transform=self.target_transform)
-        return trainloader, valloader
+        if not self.is_test:
+            trainloader = self.loader(self.train, shuffle=True, transform=self.transform, target_transform=self.target_transform)
+            valloader = self.loader(self.val, transform=self.transform, target_transform=self.target_transform)
+            return trainloader, valloader
+        else:
+            testloader = self.loader(self.test, shuffle=True, transform=self.transform, target_transform=self.target_transform)
+            return testloader
+        

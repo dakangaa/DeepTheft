@@ -74,7 +74,7 @@ def train_step(epoch):
     timer = Timer()
     timer.start()
     train_loss, accuracy, F1 = 0, 0, 0
-    f1.reset()？
+    f1.reset()
     for batch_idx, (inputs, targets) in enumerate(trainloader):
         inputs, targets = inputs.to(device).float(), targets.to(device).long()
 
@@ -116,14 +116,15 @@ def eval_step(epoch, arg, loader):
     return eval_loss / len(loader), F1
 
 
-def save_step(epoch, acc):
+def save_step(epoch, acc, test_index):
     global best_acc
     if sum(acc) > sum(best_acc):
         print('saving...', end='\n\n')
         state = {
             'net': net.state_dict(),
             'epoch': epoch,
-            "acc": acc  
+            "acc": acc, 
+            "test_index": test_index
         }
         if not os.path.exists(args.path):
             os.makedirs(args.path)
@@ -138,7 +139,7 @@ def train():
         # epoch += 1
         train_loss, train_acc = train_step(epoch)
         val_loss, val_acc = eval_step(epoch, "VAL", valloader)
-        save_step(epoch, [val_acc])
+        save_step(epoch, [val_acc], data.test_index)
         scheduler.step()
 
 
@@ -158,13 +159,18 @@ if __name__ == '__main__':
     else:
         device = torch.device('cpu')
 
-    data = RaplLoader(batch_size=args.batch_size, num_workers=args.workers, mode=args.HyperParameter) # ?mode:一次训练一个超参数模型?
+    if args.resume:
+        checkpoint = torch.load(args.path + '/' + args.HyperParameter + '_ckpt.pth', weights_only=True)
+        test_index = checkpoint["test_index"] 
+        data = RaplLoader(batch_size=args.batch_size, num_workers=args.workers, mode=args.HyperParameter, test_index = test_index) # ?mode:一次训练一个超参数模型?
+    else:
+        data = RaplLoader(batch_size=args.batch_size, num_workers=args.workers, mode=args.HyperParameter) # ?mode:一次训练一个超参数模型?
+        
     trainloader, valloader = data.get_loader()
 
     net = MateModel_Hyper.Model(num_classes=data.num_classes).to(device)
     if args.resume:
         print('Loading...')
-        checkpoint = torch.load(args.path + '/' + args.HyperParameter + '_ckpt.pth', weights_only=True)
         net.load_state_dict(checkpoint['net'])
         best_acc = checkpoint['acc']
         start_epoch = checkpoint['epoch']

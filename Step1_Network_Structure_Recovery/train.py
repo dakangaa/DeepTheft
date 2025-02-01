@@ -171,10 +171,11 @@ def save_step(epoch, acc):
             'net': net.state_dict(),
             'acc': best_acc,
             'epoch': epoch,
+            "test_index": data.test_index
         }
         if not os.path.exists(args.path):
             os.makedirs(args.path)
-        torch.save(state, args.path + '/ckpt.pth')
+        torch.save(state, args.path + '/' + args.mode + '_ckpt.pth')
         best_acc = acc
     else:
         print("(LA+SA)/2 精确度未上升")
@@ -194,11 +195,12 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='DeepTheft Training')#L:设置运行参数
     parser.add_argument('--lr', default=0.01, type=float, help='learning rate')
-    parser.add_argument('--batch_size', default=32, type=int, help='mini-batch size')
-    parser.add_argument('--epochs', default=100, type=int, help='number of total epochs to run')
+    parser.add_argument('--batch_size', default=85, type=int, help='mini-batch size')
+    parser.add_argument('--epochs', default=10, type=int, help='number of total epochs to run')
     parser.add_argument('--path', default='results/MateModel_Stru', type=str, help='save_path') # 中途保存的文件和继续读取的文件
     parser.add_argument('--workers', default=0, type=int, help='number of data loading workers')
     parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
+    parser.add_argument("--mode", default="all", type=str, help="样本的input_size, default=all:混合一起训练")
     args = parser.parse_args()
     if torch.cuda.is_available():
         device = torch.device('cuda')
@@ -207,17 +209,16 @@ if __name__ == '__main__':
         device = torch.device('cpu')
 
     print('Loading data...') # 加载数据到内存中
-    timer_load_data = Timer()
-    timer_load_data.start()
-    data = RaplLoader(batch_size=args.batch_size, num_workers=args.workers) 
+    test_index = None
+    if args.resume:
+        checkpoint = torch.load(args.path + '/', args.mode, '_ckpt.pth', weights_only=False) # ckpt: checkpoint
+        test_index = checkpoint["test_index"]
+    data = RaplLoader(batch_size=args.batch_size, num_workers=args.workers, test_index = test_index, mode=args.mode) 
     trainloader, valloader = data.get_loader()
-    timer_load_data.stop()
-    print(f"Finish loading: {timer_load_data.sum():.3f} sec")
     # 创建新网络
     net = MateModel_Stru.Model(num_classes=data.num_classes).to(device) # ? :LSTM的输出和输出
     # 恢复参数
     if args.resume:
-        checkpoint = torch.load(args.path + '/ckpt.pth', weights_only=False) # ckpt: checkpoint
         net.load_state_dict(checkpoint['net']) #L：state_dict
         best_acc = checkpoint['acc']
         start_epoch = checkpoint['epoch']

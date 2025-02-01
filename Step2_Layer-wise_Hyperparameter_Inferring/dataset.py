@@ -10,16 +10,11 @@ os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 models = {'vgg':0, 'vgg_bn':1, 'resnet_basicblock':2, 'resnet_bottleneck':3, 'custom_net':4, 'custom_net_bn':5}
 samples = [256, 256, 2592, 2592, 2728, 2728]
-# train_samples = [12, 12, 116, 116, 122, 122]
 test_samples = [26, 26, 268, 268, 282, 282]
 
-# 似乎没用:
-# train_index = [] 
-# np.random.seed(1)
-# for i in range(len(samples)):
-#     index = np.random.choice(samples[i], train_samples[i], replace=False)
-#     train_index.append(index)
-
+labels_name = {'conv2d': 0, 'batch_norm': 1, 'relu_': 2,
+               'max_pool2d': 3, 'adaptive_avg_pool2d': 4,
+               'linear': 5, 'add_': 6, '_': 7}
 
 class Normalization(torch.nn.Module):
     def __init__(self):
@@ -38,17 +33,20 @@ class Resize(torch.nn.Module):
 
     def forward(self, inputs):
         out = [inputs[int(i * inputs.shape[0] / self.length)] for i in range(self.length)] # 通过子采样resize样本到指定大小
-        out = np.array(out).transpose([1, 0])
+        out = np.array(out).transpose([1, 0]) # 对x转置
         return out
 
 
 class ToTargets(torch.nn.Module):
-    def __init__(self, mode, label):
+    def __init__(self, mode, label, layer_type, regression=False):
         super().__init__()
         self.mode = mode
         self.label = label
-
+        self.layer_type = layer_type
+        self.is_regression = regression
+        
     def forward(self, targets):
+        # 每次只对一个target(层)调用
         # 其他超参数呢
         if self.mode == 'kernel_size':
             # {1, 3, 5, 7} --> {0, 1, 2, 2?}
@@ -60,9 +58,17 @@ class ToTargets(torch.nn.Module):
             targets = targets[self.label]
             targets = targets - 1
         if self.mode == 'out_channels':
-            # {2^4, 2^5, 2^6,...} --> {-2, -1, 0, ...}
-            targets = targets[self.label]
-            targets = np.log2(targets) - 6
+            if self.is_regression:
+                if self.layer_type == "conv2d":    
+                    O_c = targets[0] * targets[2]**2 * targets[1] * targets[8]**2
+                    targets = np.concatenate([targets[0:3], [targets[8]], [np.log2(O_c)]], dtype=np.float32)
+                if self.layer_type == "linear":
+                    O_l = targets[0] * targets[1]
+                    targets = np.concatenate([targets[0:2], [np.log2(O_l)]], dtype=np.float32)
+            else :
+                # {2^4, 2^5, 2^6,...} --> {-2, -1, 0, ...}
+                targets = targets[self.label]
+                targets = np.log2(targets) - 6
         return targets
 
 
@@ -73,7 +79,7 @@ class Rapl(torch.utils.data.Dataset):
         self.target_transform = target_transform
 
     def __getitem__(self, index):
-        feat, lab = self.feature[index][:, 1:3], self.label[index]
+        feat, lab = self.feature[index][:, 1:3], self.label[index] # 还是只取其中两个channel
         feat = self.transform(feat) if self.transform is not None else feat
         lab = self.target_transform(lab) if self.target_transform is not None else lab
         return feat, lab
@@ -83,7 +89,7 @@ class Rapl(torch.utils.data.Dataset):
 
 
 class RaplLoader(object):
-    def __init__(self, batch_size, mode, num_workers=0, test_index=None, is_test=False, input_size="224"):
+    def __init__(self, batch_size, layer_type, mode, num_workers=0, test_index=None, is_test=False, input_size="224", indirect_regression=False):
         if test_index == None:
             self.test_index = []
             np.random.seed(0)
@@ -95,15 +101,20 @@ class RaplLoader(object):
         self.label = {'in_channels': 0, 'out_channels': 1, 'kernel_size': 2,
                       'stride': 3, 'padding': 4, 'dilation': 5,
                       'groups': 6, 'input_size': 7, 'output_size': 8}[mode] #mode直接对字典取值
+        self.layer_type = layer_type
         # 与层类别无关?
         self.batch_size = batch_size
         self.num_workers = num_workers
-        self.num_classes = {'out_channels': 6, 'kernel_size': 3, 'stride': 2}[mode]
+        if indirect_regression:
+            self.num_classes = {'out_channels': 1, 'kernel_size': 3, 'stride': 2}[mode]
+        else:
+            self.num_classes = {'out_channels': 6, 'kernel_size': 3, 'stride': 2}[mode]
+            
         self.is_test = is_test
         self.input_size = input_size # 样本的input_size
         if not self.is_test:
             self.train, self.val = self.preprocess()
-            # train: 224input_size 样本的 conv层 三个RAPL通道
+            # train: 224input_size 样本的 conv层 (只取两个channel)
             # val: 对应的一个超参数kernel_size(可调)
         else:
             self.test = self.preprocess()
@@ -113,7 +124,7 @@ class RaplLoader(object):
             Resize(1024), # 子采样缩放到1024长度
         ]) # 对x处理的模块
         self.target_transform = transforms.Compose([
-            ToTargets(mode, self.label),#对目标值进行缩放(K, S, C_o)
+            ToTargets(mode, self.label, self.layer_type, indirect_regression),#对目标值进行缩放(K, S, C_o)
         ]) # 对y处理的模块
         
         
@@ -123,29 +134,36 @@ class RaplLoader(object):
         val_x, val_y = [], []
         x = h5py.File(r'../autodl-tmp/dataset/data.h5', 'r')
         y = h5py.File(r'../autodl-tmp/dataset/hp.h5', 'r')
-
+        error_sample_index = ['custom_net)224)1489', 'custom_net)224)1871']
         for k in x['data'].keys():
-            if k.split(')')[1] == self.input_size: # A：只对输入大小为224的样本训练
+            if k.split(')')[1] == self.input_size and k not in error_sample_index: # A：只对输入大小为224的样本训练
                 d = x['data'][k][:]
                 pos = x['position'][k][:]
                 hp = y[k][:]
-                hp = hp[hp[:, 0] != -1]
-                hp = hp[hp[:, -1] != -1]
-                #去除与输入通道数无关或与输出形状无关的层(?去掉MP和Linear)
-                
+                if self.layer_type == "linear":
+                    # 大部分linear层的采样点数都为0
+                    hp = hp[hp[:, -2] == -1]
+                    hp = hp[hp[:, -1] == -1]
+                elif self.layer_type == "conv2d":
+                    hp = hp[hp[:, 0] != -1]
+                    hp = hp[hp[:, -1] != -1]
+                elif self.layer_type == "max_pool2d":
+                    hp = hp[hp[:, 0] == -1]
+                    
                 test_indexes = self.test_index[models[k.split(')')[0]]] # 训练样本index数组
                 n = int(k.split(')')[-1]) # 当前样本index
                 hp_index = 0
                 for (i, j) in pos:
-                    if d[:, -1][i] == 0: # ? 0:只取卷积层
+                    if d[:, -1][j] == labels_name[self.layer_type]: 
                         if n in test_indexes:
-                            val_x.append(d[i:j + 1, :-1])# x是三个RAPL通道
+                            val_x.append(d[i:j + 1, :-1])
                             val_y.append(hp[hp_index])  # 只有卷积层的超参数
                         else:
                             train_x.append(d[i:j + 1, :-1])
                             train_y.append(hp[hp_index])
                         hp_index += 1
                 assert hp_index == len(hp)
+
         if self.is_test:
             return train_x + val_x, train_y + val_y
         else:

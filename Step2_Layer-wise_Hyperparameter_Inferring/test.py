@@ -31,7 +31,7 @@ def eval_step(epoch, arg, loader):
 
 parser = argparse.ArgumentParser(description='Test in different samples of input_size')
 parser.add_argument('--batch_size', default=1280, type=int, help='mini-batch size')
-parser.add_argument('--input_size', default="331", type=str, help='test input_size')
+parser.add_argument('--input_size', default="192", type=str, help='test input_size')
 parser.add_argument("--HyperParameter", "-H", default="kernel_size", type=str, help="测试的超参数")   # option: kernel_size, stride, out_channels
 args = parser.parse_args()
 hp = args.HyperParameter

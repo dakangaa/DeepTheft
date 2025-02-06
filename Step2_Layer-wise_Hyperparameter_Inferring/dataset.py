@@ -89,7 +89,7 @@ class Rapl(torch.utils.data.Dataset):
 
 
 class RaplLoader(object):
-    def __init__(self, batch_size, layer_type, mode, num_workers=0, test_index=None, is_test=False, input_size=["224", "160", "299", "331"], indirect_regression=False):
+    def __init__(self, batch_size, layer_type, mode, num_workers=0, test_index=None, is_test=False, input_size=["224"], indirect_regression=False):
         if test_index == None:
             self.test_index = []
             np.random.seed(0)
@@ -132,8 +132,8 @@ class RaplLoader(object):
         # !需要外部调用
         train_x, train_y = [], []
         val_x, val_y = [], []
-        x = h5py.File(r'./dataset/data.h5', 'r')
-        y = h5py.File(r'./dataset/hp.h5', 'r')
+        x = h5py.File(r'../autodl-tmp/dataset/data.h5', 'r')
+        y = h5py.File(r'../autodl-tmp/dataset/hp.h5', 'r')
         for k in x['data'].keys():
             if k.split(')')[1] in self.input_size : # A：只对输入大小为224的样本训练
                 d = x['data'][k][:]

@@ -12,8 +12,9 @@
             "request": "launch",
             "program": "${file}",
             "args": [
-                "--H", "kernel_size",       // option: kernel_size, stride, out_channels
-                "--resume"
+                "--H", "out_channels",       // option: kernel_size, stride, out_channels
+                // "--resume",
+                "--origin_domain_num", "1"
             ]
         },
         {

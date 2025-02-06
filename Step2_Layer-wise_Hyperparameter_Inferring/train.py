@@ -129,7 +129,7 @@ def save_step(epoch, acc, test_index, f1):
         }
         if not os.path.exists(args.path):
             os.makedirs(args.path)
-        torch.save(state, args.path + '/' + args.HyperParameter + '_ckpt.pth')
+        torch.save(state, args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + '_ckpt.pth')
         best_f1 = f1
     else:
         print("此次epoch, 精确度没有提高")
@@ -149,24 +149,30 @@ if __name__ == '__main__':
     parser.add_argument('--lr', default=0.01, type=float, help='learning rate')
     parser.add_argument('--batch_size', default=128, type=int, help='mini-batch size')
     parser.add_argument('--epochs', default=100, type=int, help='number of total epochs to run')
+    
     parser.add_argument('--path', default='results/MateModel_Hyper', type=str, help='save_path')
     parser.add_argument('--workers', default=0, type=int, help='number of data loading workers')
     parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
     parser.add_argument("--layer_type", default="conv2d", type=str, help="layer_type which hyperParameter is belong to")
     parser.add_argument("--HyperParameter", "-H", default="kernel_size", type=str, help="训练的超参数")   # option: kernel_size, stride, out_channels
+    parser.add_argument("--origin_domain_num", "-o", default=1, type=int, help="源域数量")
     args = parser.parse_args()
     if torch.cuda.is_available():
         device = torch.device('cuda')
         cudnn.benchmark = True
     else:
         device = torch.device('cpu')
+    # 确定训练源域
+    input_size = ["160", "192", "224", "299", "331"][0 : args.origin_domain_num]
 
     if args.resume:
         checkpoint = torch.load(args.path + '/' + args.HyperParameter + '_ckpt.pth')
         test_index = checkpoint["test_index"] 
-        data = RaplLoader(batch_size=args.batch_size, num_workers=args.workers, layer_type=args.layer_type, mode=args.HyperParameter, test_index = test_index)
+        data = RaplLoader(batch_size=args.batch_size, num_workers=args.workers, layer_type=args.layer_type, mode=args.HyperParameter, 
+                          test_index = test_index, input_size=input_size)
     else:
-        data = RaplLoader(batch_size=args.batch_size, num_workers=args.workers, mode=args.HyperParameter) 
+        data = RaplLoader(batch_size=args.batch_size, num_workers=args.workers, layer_type=args.layer_type, mode=args.HyperParameter,
+                          input_size=input_size) 
         
     trainloader, valloader = data.get_loader()
 

@@ -190,7 +190,7 @@ if __name__ == '__main__':
             test_index = checkpoint["test_index"] 
             data = RaplLoader(batch_size=args.batch_size, num_workers=args.workers, layer_type=args.layer_type, mode=args.HyperParameter, test_index = test_index)
     else:
-        data = RaplLoader(batch_size=args.batch_size, num_workers=args.workers, mode=args.HyperParameter) 
+        data = RaplLoader(batch_size=args.batch_size, num_workers=args.workers, mode=args.HyperParameter, layer_type=args.layer_type) 
         
     trainloader, valloader = data.get_loader()
     if args.pretrain:

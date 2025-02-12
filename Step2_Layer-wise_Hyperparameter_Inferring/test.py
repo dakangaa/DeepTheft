@@ -42,7 +42,7 @@ input_size = args.input_size
 device = torch.device("cuda")
 
 print("Loading data...")
-data = dataset.RaplLoader(batch_size=batch_size, layer_type="conv2d", mode=hp, input_size = input_size, is_test=True)
+data = dataset.RaplLoader(args, input_size = input_size, is_test=True)
 test_loader = data.get_loader()
 
 print("Loading Model...")

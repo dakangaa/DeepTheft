@@ -89,7 +89,8 @@ class Rapl(torch.utils.data.Dataset):
 
 
 class RaplLoader(object):
-    def __init__(self, batch_size, layer_type, mode, num_workers=0, test_index=None, is_test=False, input_size=["224"], indirect_regression=False):
+    def __init__(self, args, test_index=None, is_test=False, input_size=["224"], indirect_regression=False):
+        self.use_domain = args.use_domain
         if test_index == None:
             self.test_index = []
             np.random.seed(0)
@@ -100,15 +101,14 @@ class RaplLoader(object):
             self.test_index = test_index
         self.label = {'in_channels': 0, 'out_channels': 1, 'kernel_size': 2,
                       'stride': 3, 'padding': 4, 'dilation': 5,
-                      'groups': 6, 'input_size': 7, 'output_size': 8}[mode] #mode直接对字典取值
-        self.layer_type = layer_type
-        # 与层类别无关?
-        self.batch_size = batch_size
-        self.num_workers = num_workers
+                      'groups': 6, 'input_size': 7, 'output_size': 8}[args.HyperParameter] #mode直接对字典取值
+        self.layer_type = args.layer_type
+        self.batch_size = args.batch_size
+        self.num_workers = args.workers
         if indirect_regression:
-            self.num_classes = {'out_channels': 1, 'kernel_size': 3, 'stride': 2}[mode]
+            self.num_classes = {'out_channels': 1, 'kernel_size': 3, 'stride': 2}[args.HyperParameter]
         else:
-            self.num_classes = {'out_channels': 6, 'kernel_size': 3, 'stride': 2}[mode]
+            self.num_classes = {'out_channels': 6, 'kernel_size': 3, 'stride': 2}[args.HyperParameter]
             
         self.is_test = is_test
         self.input_size = input_size # 样本的input_size
@@ -124,7 +124,7 @@ class RaplLoader(object):
             Resize(1024), # 子采样缩放到1024长度
         ]) # 对x处理的模块
         self.target_transform = transforms.Compose([
-            ToTargets(mode, self.label, self.layer_type, indirect_regression),#对目标值进行缩放(K, S, C_o)
+            ToTargets(args.HyperParameter, self.label, self.layer_type, indirect_regression),#对目标值进行缩放(K, S, C_o)
         ]) # 对y处理的模块
         
         
@@ -132,10 +132,14 @@ class RaplLoader(object):
         # !需要外部调用
         train_x, train_y = [], []
         val_x, val_y = [], []
+        if self.use_domain:
+            train_domain = []
+            val_domain = []
         x = h5py.File(r'../autodl-tmp/dataset/data.h5', 'r')
         y = h5py.File(r'../autodl-tmp/dataset/hp.h5', 'r')
         for k in x['data'].keys():
-            if k.split(')')[1] in self.input_size : # A：只对输入大小为224的样本训练
+            domain = k.split(")")[1]
+            if domain in self.input_size : # A：只对输入大小为224的样本训练
                 d = x['data'][k][:]
                 pos = x['position'][k][:]
                 hp = y[k][:]
@@ -157,21 +161,31 @@ class RaplLoader(object):
                         if n in test_indexes:
                             val_x.append(d[i:j + 1, :-1])
                             val_y.append(hp[hp_index])  # 只有卷积层的超参数
+                            if self.use_domain:
+                                val_domain.append(domain)
                         else:
                             train_x.append(d[i:j + 1, :-1])
                             train_y.append(hp[hp_index])
+                            if self.use_domain:
+                                train_domain.append(domain)
                         hp_index += 1
                 assert hp_index == len(hp)
 
         if self.is_test:
-            return train_x + val_x, train_y + val_y
+            if self.use_domain:
+                return train_x + val_x, train_y + val_y, train_domain + val_domain
+            else:
+                return train_x + val_x, train_y + val_y
         else:
-            return (train_x, train_y), (val_x, val_y)
+            if self.use_domain:
+                return (train_x, train_y, train_domain), (val_x, val_y, val_domain)
+            else:
+                return (train_x, train_y), (val_x, val_y)
 
     def loader(self, data, shuffle=False, transform=None, target_transform=None):
         dataset = Rapl(data, transform=transform, target_transform=target_transform) # 自定义一个DataSet类
         dataloader = torch.utils.data.DataLoader(
-            dataset, batch_size=self.batch_size, shuffle=shuffle, num_workers=self.num_workers)
+            dataset, batch_size=self.batch_size, shuffle=shuffle, num_workers=self.num_workers, pin_memory=True)
         return dataloader
 
     def get_loader(self):

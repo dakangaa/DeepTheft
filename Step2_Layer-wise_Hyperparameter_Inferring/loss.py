@@ -79,7 +79,7 @@ class CompLoss(nn.Module):
     def forward(self, features, prototypes, labels, domains):
 
         prototypes = F.normalize(prototypes, dim=1) 
-        proxy_labels = torch.arange(0, self.args.n_cls).cuda() #cls
+        proxy_labels = torch.arange(0, self.args.num_classes).cuda() #cls
         labels = labels.contiguous().view(-1, 1)# bz, 1
         mask = torch.eq(labels, proxy_labels).float().cuda() #(bz, cls) 对应类别标签的mask
         # mask = torch.eq(labels, proxy_labels.T).float().cuda() #bz, cls
@@ -162,7 +162,7 @@ class CompNGLoss(nn.Module):
 
     def forward(self, features, prototypes, labels):
         prototypes = F.normalize(prototypes, dim=1) 
-        proxy_labels = torch.arange(0, self.args.n_cls).cuda()
+        proxy_labels = torch.arange(0, self.args.num_classes).cuda()
         labels = labels.contiguous().view(-1, 1)
         mask = torch.eq(labels, proxy_labels.T).float().cuda() #bz, cls
         # compute logits
@@ -190,7 +190,7 @@ class DisLPLoss(nn.Module):
         self.init_class_prototypes()
 
     def compute(self):
-        num_cls = self.args.n_cls
+        num_cls = self.args.num_classes
         # l2-normalize the prototypes if not normalized
         prototypes = F.normalize(self.prototypes, dim=1) 
 
@@ -214,17 +214,17 @@ class DisLPLoss(nn.Module):
         """Initialize class prototypes"""
         self.model.eval()
         start = time.time()
-        prototype_counts = [0]*self.args.n_cls
+        prototype_counts = [0]*self.args.num_classes
         with torch.no_grad():
-            prototypes = torch.zeros(self.args.n_cls,self.args.feat_dim).cuda()
+            prototypes = torch.zeros(self.args.num_classes,self.args.feat_dim).cuda()
             #for input, target in self.loader:
             for i, (input, target, domain) in enumerate(self.loader):
-                input, target = input.cuda(), target.cuda()
+                input, target = input.cuda().float(), target.cuda().long()
                 features = self.model(input) # extract normalized features
                 for j, feature in enumerate(features):
                     prototypes[target[j].item()] += feature
                     prototype_counts[target[j].item()] += 1
-            for cls in range(self.args.n_cls):
+            for cls in range(self.args.num_classes):
                 prototypes[cls] /=  prototype_counts[cls] 
             # measure elapsed time
             duration = time.time() - start
@@ -242,7 +242,7 @@ class DisLoss(nn.Module):
         self.args = args
         self.temperature = temperature
         self.base_temperature = base_temperature
-        self.register_buffer("prototypes", torch.zeros(self.args.n_cls,self.args.feat_dim))
+        self.register_buffer("prototypes", torch.zeros(self.args.num_classes,self.args.feat_dim))
         self.model = model
         self.loader = loader
         self.init_class_prototypes()
@@ -252,7 +252,7 @@ class DisLoss(nn.Module):
         Update class prototypes and compute loss_sep
         """
         prototypes = self.prototypes
-        num_cls = self.args.n_cls
+        num_cls = self.args.num_classes
         # 更新类原型
         for j in range(len(features)):
             prototypes[labels[j].item()] = F.normalize(prototypes[labels[j].item()] *self.args.proto_m + features[j]*(1-self.args.proto_m), dim=0)
@@ -285,21 +285,21 @@ class DisLoss(nn.Module):
         """
         self.model.eval()
         start = time.time()
-        prototype_counts = [0]*self.args.n_cls
+        prototype_counts = [0]*self.args.num_classes
         with torch.no_grad():
-            prototypes = torch.zeros(self.args.n_cls,self.args.feat_dim).cuda()
+            prototypes = torch.zeros(self.args.num_classes,self.args.feat_dim).cuda()
             for i, values in enumerate(self.loader):
                 if len(values) == 3:
                     input, target, domain = values
                 elif len(values) == 2:
                     input, target = values
                     domain = None 
-                input, target = input.cuda(), target.cuda()
+                input, target = input.cuda().float(), target.cuda().long()
                 features = self.model(input)
                 for j, feature in enumerate(features):
                     prototypes[target[j].item()] += feature
                     prototype_counts[target[j].item()] += 1
-            for cls in range(self.args.n_cls):
+            for cls in range(self.args.num_classes):
                 prototypes[cls] /=  prototype_counts[cls] 
             # measure elapsed time
             duration = time.time() - start
@@ -317,7 +317,7 @@ class Loss(nn.Module):
         self.w = args.w
         self.temperature = args.temperature
     
-    def forward(self, net, input, target, domain):
+    def forward(self, net, input, target, domain=None):
         features = net(input)
         feat_dot_prototype = torch.div(torch.matmul(features, self.disLoss.prototypes.T), self.temperature)
 

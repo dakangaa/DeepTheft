@@ -41,13 +41,13 @@ class DownBlock(nn.Module):
 
 
 class FinalBlock(nn.Module):
-    def __init__(self, in_channels, output_size, args):
+    def __init__(self, in_channels, args):
         super().__init__()
         self.classifier = nn.Sequential(
             nn.AdaptiveAvgPool1d(1),
             nn.Flatten(),
             nn.Dropout(0.1),
-            nn.Linear(in_channels, output_size),
+            nn.Linear(in_channels, args.num_classes),
         )
         if args.head == "mlp":
             self.head = nn.Sequential(
@@ -55,13 +55,13 @@ class FinalBlock(nn.Module):
                 nn.Flatten(),
                 nn.Linear(in_channels, in_channels),
                 nn.ReLU(),
-                nn.Linear(in_channels, output_size)
+                nn.Linear(in_channels, args.feat_dim)
             )
         elif args.head == "linear":
             self.head = nn.Sequential(
                 nn.AdaptiveAvgPool1d(1),
                 nn.Flatten(),
-                nn.Linear(in_channels, output_size)
+                nn.Linear(in_channels, args.feat_dim)
             )
 
         self.pretrain = args.pretrain
@@ -76,7 +76,7 @@ class FinalBlock(nn.Module):
 
 
 class Model(nn.Module):
-    def __init__(self, output_size,  args, input_channels=2):
+    def __init__(self, args, input_channels=2):
         super().__init__()
         n = 8
         filter = [n, n * 2, n * 4, n * 8]
@@ -86,7 +86,7 @@ class Model(nn.Module):
         self.down_conv3 = DownBlock(filter[1], filter[2])
         self.down_conv4 = DownBlock(filter[2], filter[3])
 
-        self.final = FinalBlock(filter[3], output_size, args)
+        self.final = FinalBlock(filter[3], args)
         self.pretrain = args.pretrain
 
     def forward(self, x):

@@ -14,8 +14,8 @@
             "args": [
                 "--H", "kernel_size",       // option: kernel_size, stride, out_channels
                 "-o", "3",
-                "--pretrain"
-                // "--resume"
+                // "--pretrain"
+                "--resume"
             ]
         },
         {

@@ -184,6 +184,7 @@ if __name__ == '__main__':
     parser.add_argument("--layer_type", default="conv2d", type=str, help="layer_type which hp belong to")
     parser.add_argument("--input_size", default="224", type=str, help="input_size of target model")
     args = parser.parse_args()
+    args.HyperParameter = "out_channels"
     if torch.cuda.is_available():
         device = torch.device('cuda')
         cudnn.benchmark = True
@@ -193,9 +194,9 @@ if __name__ == '__main__':
     if args.resume:
         checkpoint = torch.load(args.path + '/out_channels_ckpt.pth')
         test_index = checkpoint["test_index"] 
-        data = RaplLoader(batch_size=args.batch_size, layer_type=args.layer_type, num_workers=args.workers, mode="out_channels", test_index = test_index, indirect_regression=True) 
+        data = RaplLoader(args, test_index = test_index, indirect_regression=True) 
     else:
-        data = RaplLoader(batch_size=args.batch_size, layer_type=args.layer_type, num_workers=args.workers, mode="out_channels", indirect_regression=True)
+        data = RaplLoader(args, indirect_regression=True)
         
     trainloader, valloader = data.get_loader()
 

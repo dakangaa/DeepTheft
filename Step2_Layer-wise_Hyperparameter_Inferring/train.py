@@ -48,10 +48,10 @@ class F1_score(nn.Module):
         self.tp, self.tn, self.fp, self.fn = 0, 0, 0, 0
 
     def forward(self, y_pred, y_true):
-        assert y_pred.ndim == 2
+        assert y_pred.ndim == 1, "y为正确类别数据"
         assert y_true.ndim == 1
         y_true = F.one_hot(y_true, self.num_classes)
-        y_pred = F.one_hot(torch.argmax(y_pred, dim=1), self.num_classes)
+        y_pred = F.one_hot(y_pred, self.num_classes)
 
         self.tp += (y_true * y_pred).sum(0)
         self.tn += ((1 - y_true) * (1 - y_pred)).sum(0)
@@ -80,7 +80,12 @@ def train_step(epoch):
         inputs, targets = inputs.to(device).float(), targets.to(device).long()
         domain = None # TODO
         optimizer.zero_grad()
-        loss, pred = criterion(net, inputs, targets, domain)
+        if args.pretrain:
+            pred = net(inputs)
+            loss = criterion(pred, targets)
+            pred = torch.argmax(pred, dim=1)
+        else:
+            loss, pred = criterion(net, inputs, targets)
         loss.backward()
         optimizer.step()
 
@@ -106,7 +111,11 @@ def eval_step(epoch, arg, loader):
         inputs, targets = inputs.to(device).float(), targets.to(device).long()
 
         domain = None # TODO
-        loss, pred = criterion(net, inputs, targets, domain)
+        if args.pretrain:
+            pred = net(inputs)
+            loss = criterion(pred, targets)
+        else:
+            loss, pred = criterion(net, inputs, targets)
 
         eval_loss += loss.item()
         accuracy, p, r, F1 = f1(pred, targets)
@@ -155,7 +164,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='DeepTheft Training')
     parser.add_argument('--lr', default=0.01, type=float, help='learning rate')
     parser.add_argument('--batch_size', default=128, type=int, help='mini-batch size')
-    parser.add_argument('--epochs', default=100, type=int, help='number of total epochs to run')
+    parser.add_argument('--epochs', default=10, type=int, help='number of total epochs to run')
     parser.add_argument('--path', default='results/MateModel_Hyper', type=str, help='save_path')
     parser.add_argument('--workers', default=0, type=int, help='number of data loading workers')
     parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
@@ -169,6 +178,7 @@ if __name__ == '__main__':
     parser.add_argument("--use_domain", action="store_true", help="是否使用源域信息")
     parser.add_argument("--w", default=1, type=float, help="compLoss的权重")
     parser.add_argument("--temperature", default=0.1, type=float, help="温度系数tao")
+    parser.add_argument('--proto_m', default= 0.95, type=float, help='weight of prototype update')
     args = parser.parse_args()
     if torch.cuda.is_available():
         device = torch.device('cuda')
@@ -183,7 +193,7 @@ if __name__ == '__main__':
             path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + "pretrain" + '_ckpt.pth'
             checkpoint = torch.load(path)
             test_index = checkpoint["test_index"] 
-            data = RaplLoader(batch_size=args.batch_size, num_workers=args.workers, layer_type=args.layer_type, mode=args.HyperParameter, input_size=input_size, test_index = test_index)
+            data = RaplLoader(args, input_size=input_size, test_index = test_index)
         else:
             path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + "train" + '_ckpt.pth' 
             if not os.path.exists(path):
@@ -191,18 +201,19 @@ if __name__ == '__main__':
                 path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + "pretrain" + '_ckpt.pth'
             checkpoint = torch.load(path)
             test_index = checkpoint["test_index"] 
-            data = RaplLoader(batch_size=args.batch_size, num_workers=args.workers, layer_type=args.layer_type, mode=args.HyperParameter, input_size=input_size, test_index = test_index)
+            data = RaplLoader(args, input_size=input_size, test_index = test_index)
     else:
-        data = RaplLoader(batch_size=args.batch_size, num_workers=args.workers, mode=args.HyperParameter, input_size=input_size, layer_type=args.layer_type) 
-
+        assert args.pretrain == False, "正式训练需要加载预训练数据"
+        data = RaplLoader(args, input_size=input_size, layer_type=args.layer_type) 
+    args.num_classes = data.num_classes
         
     trainloader, valloader = data.get_loader()
     if args.pretrain:
-        net = MateModel_Hyper.Model(output_size=data.num_classes, args=args).to(device) 
-        criterion = nn.CrossEntropyLoss() 
+        net = MateModel_Hyper.Model(args=args).to(device) 
+        criterion = nn.CrossEntropyLoss().to(device)
     else:
-        net = MateModel_Hyper.Model(output_size=args.feat_dim, args=args).to(device) 
-        criterion = loss.Loss() #TODO
+        net = MateModel_Hyper.Model(args=args).to(device) 
+        criterion = loss.Loss(args, net, valloader).to(device)
     # 模型重载
     if args.resume:
         print('Loading...')
@@ -210,7 +221,7 @@ if __name__ == '__main__':
         best_acc = checkpoint['acc']
         start_epoch = checkpoint['epoch']
         best_f1 = checkpoint["f1"]
-        if "train" in path:
+        if not "pretrain" in path:
             criterion.load_state_dict(checkpoint["loss"])
     else:
         best_acc = [0]

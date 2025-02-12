@@ -199,7 +199,7 @@ if __name__ == '__main__':
         
     trainloader, valloader = data.get_loader()
 
-    net = MateModel_Hyper.Model(num_classes=data.num_classes).to(device)
+    net = MateModel_Hyper.Model(output_size=data.num_classes).to(device)
     if args.resume:
         print('Loading...')
         net.load_state_dict(checkpoint['net'])

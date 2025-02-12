@@ -8,6 +8,7 @@ import MateModel_Hyper
 from dataset import RaplLoader
 import time
 import numpy as np
+import loss
 
 class Timer:
     """Record multiple running times."""
@@ -77,15 +78,14 @@ def train_step(epoch):
     f1.reset()
     for batch_idx, (inputs, targets) in enumerate(trainloader):
         inputs, targets = inputs.to(device).float(), targets.to(device).long()
-
+        domain = None # TODO
         optimizer.zero_grad()
-        outputs = net(inputs)
-        loss = CEloss(outputs, targets)
+        loss, pred = criterion(net, inputs, targets, domain)
         loss.backward()
         optimizer.step()
 
         train_loss += loss.item()
-        accuracy, p, r, F1 = f1(outputs, targets)
+        accuracy, p, r, F1 = f1(pred, targets)
 
         timer.stop()
         if (batch_idx+1) % 100 == 0:
@@ -105,11 +105,11 @@ def eval_step(epoch, arg, loader):
     for batch_idx, (inputs, targets) in enumerate(loader):
         inputs, targets = inputs.to(device).float(), targets.to(device).long()
 
-        outputs = net(inputs)
-        loss = CEloss(outputs, targets)
+        domain = None # TODO
+        loss, pred = criterion(net, inputs, targets, domain)
 
         eval_loss += loss.item()
-        accuracy, p, r, F1 = f1(outputs, targets)
+        accuracy, p, r, F1 = f1(pred, targets)
 
     logs = '{} - Epoch: [{}]\t Loss: {:.3f}\t Acc: {:.3f}\t P: {:.3f}\t R: {:.3f}\t F1: {:.3f}\t'
     print(logs.format(arg, epoch, eval_loss / len(loader), accuracy, p, r, F1))
@@ -118,6 +118,7 @@ def eval_step(epoch, arg, loader):
 
 def save_step(epoch, acc, test_index, f1):
     global best_f1
+    
     if sum(f1) > sum(best_f1):
         print('saving...', end='\n\n')
         state = {
@@ -126,10 +127,16 @@ def save_step(epoch, acc, test_index, f1):
             "acc": acc, 
             "test_index": test_index,
             "f1": f1
-        }
+        }    
+        if args.pretrain:
+            path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + "pretrain" + '_ckpt.pth'
+        else:
+            path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + "train" + '_ckpt.pth'
+            state["loss"] = criterion.state_dict()
+
         if not os.path.exists(args.path):
             os.makedirs(args.path)
-        torch.save(state, args.path + '/' + args.HyperParameter + '_ckpt.pth')
+        torch.save(state, path)
         best_f1 = f1
     else:
         print("此次epoch, 精确度没有提高")
@@ -154,36 +161,59 @@ if __name__ == '__main__':
     parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
     parser.add_argument("--layer_type", default="conv2d", type=str, help="layer_type which hyperParameter is belong to")
     parser.add_argument("--HyperParameter", "-H", default="kernel_size", type=str, help="训练的超参数")   # option: kernel_size, stride, out_channels
+    parser.add_argument("--pretrain", action="store_true", help="是否为预训练")
+    parser.add_argument('--head', default='mlp', type=str, help='mlp or linear head')
+    parser.add_argument('--feat_dim', default = 128, type=int, help='feature dim')
+    parser.add_argument("--origin_domain_num", "-o", default=4, type=int, help="源域数量")
+    parser.add_argument("--use_domain", action="store_true", help="是否使用源域信息")
+    parser.add_argument("--w", default=1, type=float, help="compLoss的权重")
+    parser.add_argument("--temperature", default=0.1, type=float, help="温度系数tao")
     args = parser.parse_args()
     if torch.cuda.is_available():
         device = torch.device('cuda')
         cudnn.benchmark = True
     else:
         device = torch.device('cpu')
-
+    # 数据重载
     if args.resume:
-        checkpoint = torch.load(args.path + '/' + args.HyperParameter + '_ckpt.pth')
-        test_index = checkpoint["test_index"] 
-        data = RaplLoader(batch_size=args.batch_size, num_workers=args.workers, layer_type=args.layer_type, mode=args.HyperParameter, test_index = test_index)
+        if args.pretrain:
+            path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + "pretrain" + '_ckpt.pth'
+            checkpoint = torch.load(path)
+            test_index = checkpoint["test_index"] 
+            data = RaplLoader(batch_size=args.batch_size, num_workers=args.workers, layer_type=args.layer_type, mode=args.HyperParameter, test_index = test_index)
+        else:
+            path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + "train" + '_ckpt.pth' 
+            if not os.path.exists(path):
+                # 正式训练未进行，使用预训练参数
+                path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + "pretrain" + '_ckpt.pth'
+            checkpoint = torch.load(path)
+            test_index = checkpoint["test_index"] 
+            data = RaplLoader(batch_size=args.batch_size, num_workers=args.workers, layer_type=args.layer_type, mode=args.HyperParameter, test_index = test_index)
     else:
         data = RaplLoader(batch_size=args.batch_size, num_workers=args.workers, mode=args.HyperParameter) 
         
     trainloader, valloader = data.get_loader()
-
-    net = MateModel_Hyper.Model(num_classes=data.num_classes).to(device)
+    if args.pretrain:
+        net = MateModel_Hyper.Model(output_size=data.num_classes, args=args).to(device) 
+        criterion = nn.CrossEntropyLoss() 
+    else:
+        net = MateModel_Hyper.Model(output_size=args.feat_dim, args=args).to(device) 
+        criterion = loss.Loss() #TODO
+    # 模型重载
     if args.resume:
         print('Loading...')
         net.load_state_dict(checkpoint['net'])
         best_acc = checkpoint['acc']
         start_epoch = checkpoint['epoch']
         best_f1 = checkpoint["f1"]
+        if "train" in path:
+            criterion.load_state_dict(checkpoint["loss"])
     else:
         best_acc = [0]
         start_epoch = 0
         best_f1 = [0]
 
-    CEloss = nn.CrossEntropyLoss() 
-    f1 = F1_score(num_classes=data.num_classes)
+    f1 = F1_score(num_classes=data.num_classes) # y_pred y_true
 
     optimizer = torch.optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)

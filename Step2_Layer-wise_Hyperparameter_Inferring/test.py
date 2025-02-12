@@ -44,7 +44,7 @@ data = dataset.RaplLoader(batch_size=batch_size, mode=hp, is_test = True, input_
 test_loader = data.get_loader()
 print("Loading Model...")
 check_point = torch.load('results/MateModel_Hyper' + '/' + hp + '_ckpt.pth') 
-net = MateModel_Hyper.Model(num_classes=data.num_classes, input_channels=2)
+net = MateModel_Hyper.Model(output_size=data.num_classes, input_channels=2)
 net.load_state_dict(check_point["net"])
 net.to(device)
 last_acc = check_point["acc"]

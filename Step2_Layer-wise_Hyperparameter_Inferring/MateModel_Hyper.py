@@ -41,22 +41,42 @@ class DownBlock(nn.Module):
 
 
 class FinalBlock(nn.Module):
-    def __init__(self, in_channels, num_classes):
+    def __init__(self, in_channels, output_size, args):
         super().__init__()
         self.classifier = nn.Sequential(
             nn.AdaptiveAvgPool1d(1),
             nn.Flatten(),
             nn.Dropout(0.1),
-            nn.Linear(in_channels, num_classes),
+            nn.Linear(in_channels, output_size),
         )
+        if args.head == "mlp":
+            self.head = nn.Sequential(
+                nn.AdaptiveAvgPool1d(1),
+                nn.Flatten(),
+                nn.Linear(in_channels, in_channels),
+                nn.ReLU(),
+                nn.Linear(in_channels, output_size)
+            )
+        elif args.head == "linear":
+            self.head = nn.Sequential(
+                nn.AdaptiveAvgPool1d(1),
+                nn.Flatten(),
+                nn.Linear(in_channels, output_size)
+            )
+
+        self.pretrain = args.pretrain
 
     def forward(self, x):
-        out = self.classifier(x)
+        if self.pretrain:
+            out = self.classifier(x)
+        else:
+            out = self.head(x)
+
         return out
 
 
 class Model(nn.Module):
-    def __init__(self, num_classes, input_channels=2):
+    def __init__(self, output_size,  args, input_channels=2):
         super().__init__()
         n = 8
         filter = [n, n * 2, n * 4, n * 8]
@@ -66,7 +86,8 @@ class Model(nn.Module):
         self.down_conv3 = DownBlock(filter[1], filter[2])
         self.down_conv4 = DownBlock(filter[2], filter[3])
 
-        self.final = FinalBlock(filter[3], num_classes)
+        self.final = FinalBlock(filter[3], output_size, args)
+        self.pretrain = args.pretrain
 
     def forward(self, x):
         _, down_x1 = self.down_conv1(x)
@@ -75,5 +96,7 @@ class Model(nn.Module):
         _, down_x4 = self.down_conv4(down_x3)
 
         out = self.final(down_x4)
+        if self.pretrain:
+            out = F.normalize(out, dim=1)
         return out
 

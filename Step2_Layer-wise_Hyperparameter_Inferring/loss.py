@@ -127,7 +127,7 @@ class CompLoss(nn.Module):
             # 计算负样本部分：所有类别的对比损失 （分母部分）
             prot_neg_pairs = exp_prot_logits.sum(1, keepdim=True)  # 所有原型的对比得分总和
             same_domain_neg_pairs = (neg_label_pos_domain_mask * exp_feat_logits).sum(1, keepdim=True)  # 同域且不同标签的对比得分
-            neg_part = torch.log(prot_neg_pairs + same_domain_neg_pairs)  # (batch_size, 1)
+            neg_part = torch.log(prot_neg_pairs + same_domain_neg_pairs + 1e-8)  # (batch_size, 1)
             
             # 计算最终的对比损失
             loss = - (self.temperature / self.base_temperature) * (pos_part - neg_part).mean()  # 对比损失平均值

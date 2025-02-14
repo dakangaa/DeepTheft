@@ -76,16 +76,21 @@ def train_step(epoch):
     timer.start()
     train_loss, accuracy, F1 = 0, 0, 0
     f1.reset()
-    for batch_idx, (inputs, targets) in enumerate(trainloader):
-        inputs, targets = inputs.to(device).float(), targets.to(device).long()
-        domain = None # TODO
+    for batch_idx, data in enumerate(trainloader):
+        if args.use_domain:
+            assert len(data) == 3
+            inputs, targets, domain = data[0].to(device).float(), data[1].to(device).long(), data[2].to(device).long()
+        else:
+            assert len(data) == 2
+            inputs, targets = data[0].to(device).float(), data[1].to(device).long()
+            domain = None 
         optimizer.zero_grad()
         if args.pretrain:
             pred = net(inputs)
             loss = criterion(pred, targets)
             pred = torch.argmax(pred, dim=1)
         else:
-            loss, pred = criterion(net, inputs, targets)
+            loss, pred = criterion(net, inputs, targets, domain)
         loss.backward()
         optimizer.step()
 
@@ -107,15 +112,20 @@ def eval_step(epoch, arg, loader):
 
     eval_loss, accuracy, F1 = 0, 0, 0
     f1.reset()
-    for batch_idx, (inputs, targets) in enumerate(loader):
-        inputs, targets = inputs.to(device).float(), targets.to(device).long()
-
-        domain = None # TODO
+    for batch_idx, data in enumerate(loader):
+        if args.use_domain:
+            assert len(data) == 3
+            inputs, targets, domain = data[0].to(device).float(), data[1].to(device).long(), data[2].to(device).long()
+        else:
+            assert len(data) == 2
+            inputs, targets = data[0].to(device).float(), data[1].to(device).long()
+            domain = None 
         if args.pretrain:
             pred = net(inputs)
             loss = criterion(pred, targets)
+            pred = torch.argmax(pred, dim=1)
         else:
-            loss, pred = criterion(net, inputs, targets)
+            loss, pred = criterion(net, inputs, targets, domain)
 
         eval_loss += loss.item()
         accuracy, p, r, F1 = f1(pred, targets)
@@ -135,13 +145,16 @@ def save_step(epoch, acc, test_index, f1):
             'epoch': epoch,
             "acc": acc, 
             "test_index": test_index,
-            "f1": f1
+            "f1": f1,
+            "loss": criterion.state_dict()
         }    
         if args.pretrain:
             path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + "pretrain" + '_ckpt.pth'
         else:
-            path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + "train" + '_ckpt.pth'
-            state["loss"] = criterion.state_dict()
+            if args.use_domain:
+                path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + "train_usedomain" + '_ckpt.pth'
+            else:
+                path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + "train" + '_ckpt.pth'
 
         if not os.path.exists(args.path):
             os.makedirs(args.path)
@@ -175,7 +188,8 @@ if __name__ == '__main__':
     parser.add_argument('--head', default='mlp', type=str, help='mlp or linear head')
     parser.add_argument('--feat_dim', default = 128, type=int, help='feature dim')
     parser.add_argument("--origin_domain_num", "-o", default=4, type=int, help="源域数量")
-    parser.add_argument("--use_domain", action="store_true", help="是否使用源域信息")
+    parser.add_argument("--use_domain", action="store_true", help="是否使用源域信息") # Deprecated
+    
     parser.add_argument("--w", default=1, type=float, help="compLoss的权重")
     parser.add_argument("--temperature", default=0.1, type=float, help="温度系数tao")
     parser.add_argument('--proto_m', default= 0.95, type=float, help='weight of prototype update')
@@ -189,22 +203,27 @@ if __name__ == '__main__':
     input_size = ["160", "192", "224", "299", "331"][0 : args.origin_domain_num]
 
     if args.resume:
+        first_train = False #判断是否第一次正式训练
         if args.pretrain:
             path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + "pretrain" + '_ckpt.pth'
             checkpoint = torch.load(path)
             test_index = checkpoint["test_index"] 
             data = RaplLoader(args, input_size=input_size, test_index = test_index)
         else:
-            path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + "train" + '_ckpt.pth' 
+            if args.use_domain:
+                path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_train_usedomain" + '_ckpt.pth' 
+            else:
+                path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_train" + '_ckpt.pth' 
             if not os.path.exists(path):
                 # 正式训练未进行，使用预训练参数
-                path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + "pretrain" + '_ckpt.pth'
+                first_train = True # 第一次正式训练
+                path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_pretrain" + '_ckpt.pth'
             checkpoint = torch.load(path)
             test_index = checkpoint["test_index"] 
             data = RaplLoader(args, input_size=input_size, test_index = test_index)
     else:
-        assert args.pretrain == False, "正式训练需要加载预训练数据"
-        data = RaplLoader(args, input_size=input_size, layer_type=args.layer_type) 
+        assert args.pretrain == True, "正式训练需要加载预训练数据"
+        data = RaplLoader(args, input_size=input_size) 
     args.num_classes = data.num_classes
         
     trainloader, valloader = data.get_loader()
@@ -221,6 +240,9 @@ if __name__ == '__main__':
         best_acc = checkpoint['acc']
         start_epoch = checkpoint['epoch']
         best_f1 = checkpoint["f1"]
+        if first_train:
+            best_acc = [0]
+            best_f1 = [0]
         if not "pretrain" in path:
             criterion.load_state_dict(checkpoint["loss"])
     else:

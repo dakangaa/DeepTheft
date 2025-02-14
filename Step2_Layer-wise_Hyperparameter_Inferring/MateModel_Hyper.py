@@ -96,7 +96,7 @@ class Model(nn.Module):
         _, down_x4 = self.down_conv4(down_x3)
 
         out = self.final(down_x4)
-        if self.pretrain:
+        if not self.pretrain:
             out = F.normalize(out, dim=1)
         return out
 

@@ -73,16 +73,26 @@ class ToTargets(torch.nn.Module):
 
 
 class Rapl(torch.utils.data.Dataset):
-    def __init__(self, data, transform=None, target_transform=None):
-        (self.feature, self.label) = data
+    def __init__(self, data, transform=None, target_transform=None, use_domain=False):
+        self.use_domain = use_domain
+        if self.use_domain:
+            (self.feature, self.label, self.domain) = data
+        else:
+            (self.feature, self.label) = data
         self.transform = transform
         self.target_transform = target_transform
 
     def __getitem__(self, index):
-        feat, lab = self.feature[index][:, 1:3], self.label[index] # 还是只取其中两个channel
+        if self.use_domain:
+            feat, lab, dom = self.feature[index][:, 1:3], self.label[index], self.domain[index] 
+        else:
+            feat, lab = self.feature[index][:, 1:3], self.label[index]
         feat = self.transform(feat) if self.transform is not None else feat
         lab = self.target_transform(lab) if self.target_transform is not None else lab
-        return feat, lab
+        if self.use_domain:
+            return feat, lab, dom
+        else:
+            return feat, lab
 
     def __len__(self):
         return len(self.feature)
@@ -129,7 +139,8 @@ class RaplLoader(object):
         
         
     def preprocess(self):
-        # !需要外部调用
+        domain_index_dict = {"160":0, "192":1, "224":2, "299":3, "331":4}
+        data_domain = [domain_index_dict[k] for k in self.input_size]
         train_x, train_y = [], []
         val_x, val_y = [], []
         if self.use_domain:
@@ -139,7 +150,8 @@ class RaplLoader(object):
         y = h5py.File(r'../autodl-tmp/dataset/hp.h5', 'r')
         for k in x['data'].keys():
             domain = k.split(")")[1]
-            if domain in self.input_size : # A：只对输入大小为224的样本训练
+            domain = domain_index_dict[domain]
+            if domain in data_domain : # A：只对输入大小为224的样本训练
                 d = x['data'][k][:]
                 pos = x['position'][k][:]
                 hp = y[k][:]
@@ -183,13 +195,14 @@ class RaplLoader(object):
                 return (train_x, train_y), (val_x, val_y)
 
     def loader(self, data, shuffle=False, transform=None, target_transform=None):
-        dataset = Rapl(data, transform=transform, target_transform=target_transform) # 自定义一个DataSet类
+        dataset = Rapl(data, transform=transform, target_transform=target_transform, use_domain=self.use_domain) # 自定义一个DataSet类
         dataloader = torch.utils.data.DataLoader(
             dataset, batch_size=self.batch_size, shuffle=shuffle, num_workers=self.num_workers, pin_memory=True)
         return dataloader
 
     def get_loader(self):
         if not self.is_test:
+            # 训练数据
             trainloader = self.loader(self.train, shuffle=True, transform=self.transform, target_transform=self.target_transform)
             valloader = self.loader(self.val, transform=self.transform, target_transform=self.target_transform)
             return trainloader, valloader

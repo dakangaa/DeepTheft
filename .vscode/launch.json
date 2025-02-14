@@ -1,32 +1,48 @@
 {
     "configurations": [
         {
+            "name": "Python: Test 2",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "args": [
+                "--H", "out_channels",
+                "-o", "1",
+                "--layer_type", "conv2d"
+            ]
+        },
+        {
             "name": "Python Debugger",
             "type": "debugpy",
             "request": "launch",
             "program": "${file}",
         },
         {
-            "name": "Python Debugger: Step 2",
+            "name": "Python: Step 2",
             "type": "debugpy",
             "request": "launch",
             "program": "${file}",
             "args": [
-                "--H", "kernel_size",       // option: kernel_size, stride, out_channels
-                "-o", "3",
+                "--H",
+                "kernel_size", // option: kernel_size, stride, out_channels
+                "-o",
+                "3",
                 // "--pretrain"
-                "--resume"
+                "--resume", // 正式训练必须resume预训练模型
+                // "--use_domain"
             ]
         },
         {
-            "name": "Python Debugger: Step 1",
+            "name": "Python: Step 1",
             "type": "debugpy",
             "request": "launch",
             "program": "${file}",
             "args": [
-                "--batch_size", "85",
-                "--resume" 
-               // "--workers", "3",
+                "--batch_size",
+                "85",
+                "--resume"
+                // "--workers", "3",
             ]
         }
     ]

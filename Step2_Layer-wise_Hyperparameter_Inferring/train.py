@@ -135,10 +135,13 @@ def eval_step(epoch, arg, loader):
     return eval_loss / len(loader), accuracy, F1
 
 
-def save_step(epoch, acc, test_index, f1):
-    global best_f1
-    
-    if sum(f1) > sum(best_f1):
+def save_step(epoch, acc, test_index, f1, loss):
+    global best_f1, best_loss
+    if args.pretrain:
+        isSave = sum(f1) > sum(best_f1)
+    else:
+        isSave = sum(loss) > sum(best_loss)
+    if isSave:
         print('saving...', end='\n\n')
         state = {
             'net': net.state_dict(),
@@ -146,7 +149,8 @@ def save_step(epoch, acc, test_index, f1):
             "acc": acc, 
             "test_index": test_index,
             "f1": f1,
-            "loss": criterion.state_dict()
+            "loss": criterion.state_dict(),
+            "loss_value": loss
         }    
         if args.pretrain:
             path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + "pretrain" + '_ckpt.pth'
@@ -160,16 +164,17 @@ def save_step(epoch, acc, test_index, f1):
             os.makedirs(args.path)
         torch.save(state, path)
         best_f1 = f1
+        best_loss = loss
     else:
-        print("此次epoch, 精确度没有提高")
+        print("此次epoch, 模型性能没有提高")
 
 
 def train():
     for epoch in range(start_epoch, start_epoch+args.epochs):
         # epoch += 1
         train_loss, train_acc = train_step(epoch)
-        val_loss, val_acc, f1 = eval_step(epoch, "VAL", valloader)
-        save_step(epoch, [val_acc], data.test_index, [f1])
+        val_loss, val_acc, val_f1 = eval_step(epoch, "VAL", valloader)
+        save_step(epoch, [val_acc], data.test_index, [val_f1], [val_loss])
         scheduler.step()
 
 
@@ -205,11 +210,13 @@ if __name__ == '__main__':
     if args.resume:
         first_train = False #判断是否第一次正式训练
         if args.pretrain:
+            # 重载预训练
             path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + "pretrain" + '_ckpt.pth'
             checkpoint = torch.load(path)
             test_index = checkpoint["test_index"] 
             data = RaplLoader(args, input_size=input_size, test_index = test_index)
         else:
+            # 重载正式训练
             if args.use_domain:
                 path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_train_usedomain" + '_ckpt.pth' 
             else:
@@ -222,6 +229,7 @@ if __name__ == '__main__':
             test_index = checkpoint["test_index"] 
             data = RaplLoader(args, input_size=input_size, test_index = test_index)
     else:
+        # 初始预训练
         assert args.pretrain == True, "正式训练需要加载预训练数据"
         data = RaplLoader(args, input_size=input_size) 
     args.num_classes = data.num_classes
@@ -233,6 +241,7 @@ if __name__ == '__main__':
     else:
         net = MateModel_Hyper.Model(args=args).to(device) 
         criterion = loss.Loss(args, net, valloader).to(device)
+
     # 模型重载
     if args.resume:
         print('Loading...')
@@ -241,11 +250,18 @@ if __name__ == '__main__':
         start_epoch = checkpoint['epoch']
         best_f1 = checkpoint["f1"]
         if first_train:
+            # 第一次正式训练
             best_acc = [0]
             best_f1 = [0]
-        if not "pretrain" in path:
+            best_loss = [0] # 正式训练的总loss
+        else:
+            # 正式训练
             criterion.load_state_dict(checkpoint["loss"])
+            best_loss = checkpoint["loss_value"]
+            best_acc = checkpoint["acc"]
+            best_f1 = checkpoint["f1"]
     else:
+        # 预训练
         best_acc = [0]
         start_epoch = 0
         best_f1 = [0]

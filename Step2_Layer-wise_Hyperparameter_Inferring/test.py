@@ -24,7 +24,7 @@ def eval(epoch, args, loader, prototypes):
                 print(f"[{batch_idx+1}/{len(loader)}] : {batch_idx*args.batch_size/timer.sum():.3f}samples/sec")
                 timer.start()
             
-    logs = '{} - TrainEpoch: [{}]\t Acc: {:.3f}\t P: {:.3f}\t R: {:.3f}\t F1: {:.3f}\t'
+    logs = '{} - TrainEpoch:[{}]\t Acc:{:.3f}\t P:{:.3f}\t R:{:.3f}\t F1:{:.3f}\t'
     print(logs.format(args.mode, epoch, accuracy, p, r, F1))
     return F1
 

@@ -146,8 +146,8 @@ class RaplLoader(object):
         if self.use_domain:
             train_domain = []
             val_domain = []
-        x = h5py.File(r'../autodl-tmp/dataset/data.h5', 'r')
-        y = h5py.File(r'../autodl-tmp/dataset/hp.h5', 'r')
+        x = h5py.File(r'dataset/data.h5', 'r')
+        y = h5py.File(r'dataset/hp.h5', 'r')
         for k in x['data'].keys():
             domain = k.split(")")[1]
             domain = domain_index_dict[domain]

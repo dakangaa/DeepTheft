@@ -1,7 +1,7 @@
 # 查看h5文件结构
 import h5py
-file_data = h5py.File(r'../autodl-tmp/dataset/data.h5', 'r')
-file_hp = h5py.File(r'../autodl-tmp/dataset/hp.h5', 'r')
+file_data = h5py.File(r'dataset/data.h5', 'r')
+file_hp = h5py.File(r'dataset/hp.h5', 'r')
 
 conv2d_index = {'conv2d': 0, 'batch_norm': 1, 'relu_': 2,
                'max_pool2d': 3, 'adaptive_avg_pool2d': 4,

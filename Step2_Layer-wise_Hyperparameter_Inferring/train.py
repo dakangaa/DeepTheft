@@ -180,6 +180,7 @@ def train():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='DeepTheft Training')
+    parser.add_argument("--device", type=str, help="运行的机器")
     parser.add_argument('--lr', default=0.01, type=float, help='learning rate')
     parser.add_argument('--batch_size', default=128, type=int, help='mini-batch size')
     parser.add_argument('--epochs', default=10, type=int, help='number of total epochs to run')

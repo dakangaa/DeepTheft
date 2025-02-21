@@ -136,6 +136,9 @@ class RaplLoader(object):
         self.target_transform = transforms.Compose([
             ToTargets(args.HyperParameter, self.label, self.layer_type, indirect_regression),#对目标值进行缩放(K, S, C_o)
         ]) # 对y处理的模块
+
+        # 确定运行环境
+        self.device = args.device
         
         
     def preprocess(self):
@@ -146,8 +149,12 @@ class RaplLoader(object):
         if self.use_domain:
             train_domain = []
             val_domain = []
-        x = h5py.File(r'dataset/data.h5', 'r')
-        y = h5py.File(r'dataset/hp.h5', 'r')
+        if self.device == "laptop":
+            x = h5py.File(r'dataset/data.h5', 'r')
+            y = h5py.File(r'dataset/hp.h5', 'r')
+        elif self.device == "autodl":
+            x = h5py.File(r'../autodl-tmp/dataset/data.h5', 'r')
+            y = h5py.File(r'../autodl-tmp/dataset/hp.h5', 'r')
         for k in x['data'].keys():
             domain = k.split(")")[1]
             domain = domain_index_dict[domain]

@@ -100,6 +100,8 @@ class Rapl(torch.utils.data.Dataset):
 
 class RaplLoader(object):
     def __init__(self, args, test_index=None, is_test=False, input_size=["224"], indirect_regression=False):
+        # 确定运行环境
+        self.device = args.device
         self.use_domain = args.use_domain
         if test_index == None:
             self.test_index = []
@@ -137,10 +139,6 @@ class RaplLoader(object):
             ToTargets(args.HyperParameter, self.label, self.layer_type, indirect_regression),#对目标值进行缩放(K, S, C_o)
         ]) # 对y处理的模块
 
-        # 确定运行环境
-        self.device = args.device
-        
-        
     def preprocess(self):
         domain_index_dict = {"160":0, "192":1, "224":2, "299":3, "331":4}
         data_domain = [domain_index_dict[k] for k in self.input_size]

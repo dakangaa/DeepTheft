@@ -25,11 +25,11 @@
             "program": "${file}",
             "args": [
                 "-H", "kernel_size", // option: kernel_size, stride, out_channels
-                "-o", "3",
+                "-o", "1",
                 // "--pretrain"
                 "--resume", // 正式训练必须resume预训练模型
                 // "--use_domain"
-                "--device", "laptop" // "laptop" or "autodl"
+                "--device", "autodl" // "laptop" or "autodl"
             ]
         },
         {

@@ -140,7 +140,7 @@ def save_step(epoch, acc, test_index, f1, loss):
     if args.pretrain:
         isSave = sum(f1) > sum(best_f1)
     else:
-        isSave = sum(loss) > sum(best_loss)
+        isSave = sum(loss) < sum(best_loss)
     if isSave:
         print('saving...', end='\n\n')
         state = {
@@ -254,7 +254,7 @@ if __name__ == '__main__':
             # 第一次正式训练
             best_acc = [0]
             best_f1 = [0]
-            best_loss = [0] # 正式训练的总loss
+            best_loss = [float("inf")] # 正式训练的总loss
         else:
             # 正式训练
             criterion.load_state_dict(checkpoint["loss"])

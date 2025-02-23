@@ -7,9 +7,10 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "args": [
-                "--H", "out_channels",
-                "-o", "1",
-                "--layer_type", "conv2d"
+                "--layer_type", "conv2d",
+                "--device", "laptop",  // "laptop" or "autodl"
+                "--H", "kernel_size",
+                "-o", "1"
             ]
         },
         {
@@ -29,7 +30,7 @@
                 // "--pretrain"
                 "--resume", // 正式训练必须resume预训练模型
                 // "--use_domain"
-                "--device", "autodl" // "laptop" or "autodl"
+                "--device", "laptop" // "laptop" or "autodl"
             ]
         },
         {
@@ -42,6 +43,7 @@
                 "85",
                 "--resume"
                 // "--workers", "3",
+                
             ]
         }
     ]

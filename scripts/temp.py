@@ -26,7 +26,7 @@ def test(HyperParameters, Origin_domain_nums):
 
             print("testing...")
             test_cmd = ["python", "Step2_Layer-wise_Hyperparameter_Inferring/test.py", 
-                        "-H", hp, "-o", str(od)]
+                        "-H", hp, "-o", str(od), "--device", "laptop"]
             test_result = subprocess.run(test_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
             for line in test_result.stdout.split("\n"):
                 if line.startswith("TEST"):
@@ -56,14 +56,14 @@ def read_epoch(HyperParameters, Origin_domain_nums):
 
 if __name__ == "__main__":
     # read epoch
-    HyperParameters = ["kernel_size", "out_channels", "stride"]
-    Origin_domain_nums = [1,2,3]
-    df = read_epoch(HyperParameters, Origin_domain_nums)
-    print(df)
-    with pd.ExcelWriter("results/results.xlsx", if_sheet_exists="replace") as writer:
-        df.to_excel(writer, sheet_name="epoch")
-
-    # test
     # HyperParameters = ["kernel_size", "out_channels", "stride"]
     # Origin_domain_nums = [1,2,3]
-    # df = test(HyperParameters, Origin_domain_nums)
+    # df = read_epoch(HyperParameters, Origin_domain_nums)
+    # print(df)
+
+    # test
+    HyperParameters = ["kernel_size", "out_channels", "stride"]
+    Origin_domain_nums = [1,2,3]
+    df = test(HyperParameters, Origin_domain_nums)
+    with pd.ExcelWriter("results/results.xlsx", if_sheet_exists="replace", mode="a") as writer:
+        df.to_excel(writer, sheet_name="train2")

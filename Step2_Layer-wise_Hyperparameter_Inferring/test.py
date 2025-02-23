@@ -38,6 +38,7 @@ parser.add_argument("--origin_domain_num", "-o", default=1, type=int, help="训�
 parser.add_argument("--use_domain", action="store_true", help="是否使用源域信息") # Deprecated
 parser.add_argument('--head', default='mlp', type=str, help='mlp or linear head')
 parser.add_argument('--feat_dim', default = 128, type=int, help='feature dim')
+parser.add_argument("--device", type=str, default="laptop", help="laptop or autodl")
 
 args = parser.parse_args()
 args.pretrain = False

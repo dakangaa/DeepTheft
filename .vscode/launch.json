@@ -8,7 +8,7 @@
             "console": "integratedTerminal",
             "args": [
                 "--layer_type", "conv2d",
-                "--device", "laptop",  // "laptop" or "autodl"
+                "--device", "autodl",  // "laptop" or "autodl"
                 "--H", "kernel_size",
                 "-o", "1"
             ]
@@ -29,8 +29,7 @@
                 "-o", "1",
                 // "--pretrain"
                 "--resume", // 正式训练必须resume预训练模型
-                // "--use_domain"
-                "--device", "laptop" // "laptop" or "autodl"
+                "--device", "autodl" // "laptop" or "autodl"
             ]
         },
         {

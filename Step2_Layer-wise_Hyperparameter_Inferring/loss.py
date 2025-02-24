@@ -329,4 +329,4 @@ class Loss(nn.Module):
         
         loss_dis = self.disLoss(features, target)
         loss_comp = self.comLoss(features, self.disLoss.prototypes, target, domain)
-        return loss_dis + self.w*loss_comp, pred
+        return loss_dis + self.w*loss_comp, pred, loss_dis, loss_comp

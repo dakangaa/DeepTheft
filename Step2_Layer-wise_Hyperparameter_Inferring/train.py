@@ -74,7 +74,7 @@ def train_step(epoch):
 
     timer = Timer()
     timer.start()
-    train_loss, accuracy, F1 = 0, 0, 0
+    train_loss, accuracy, F1, loss1, loss2 = 0, 0, 0, 0, 0
     f1.reset()
     for batch_idx, data in enumerate(trainloader):
         if args.use_domain:
@@ -90,18 +90,20 @@ def train_step(epoch):
             loss = criterion(pred, targets)
             pred = torch.argmax(pred, dim=1)
         else:
-            loss, pred = criterion(net, inputs, targets, domain)
+            loss, pred, loss_dis, loss_comp = criterion(net, inputs, targets, domain)
         loss.backward()
         optimizer.step()
 
         train_loss += loss.item()
+        loss1 += loss_dis.item()
+        loss2 += loss_comp.item()
         accuracy, p, r, F1 = f1(pred, targets)
 
         timer.stop()
         if (batch_idx+1) % 100 == 0:
-            logs = '{} - Epoch: [{}][{}/{}]\t Loss: {:.3f}\t Acc: {:.3f}\t P: {:.3f}\t R: {:.3f}\t F1: {:.3f}\t {:.3f}samples/sec'
-            print(logs.format('TRAIN', epoch, (batch_idx+1), len(trainloader), train_loss / (batch_idx + 1), accuracy,
-                              p, r, F1, (batch_idx+1) * args.batch_size / timer.sum()))
+            logs = '{} - Epoch:[{}][{}/{}]\tLoss:{:.3f}\tLoss_Dis:{:.3f}\tLoss_Comp:{:.3f}\tAcc:{:.3f}\tP:{:.3f}\tR:{:.3f}\tF1:{:.3f}\t{:.3f}samples/sec'
+            print(logs.format('TRAIN', epoch, (batch_idx+1), len(trainloader), train_loss / (batch_idx + 1), loss1 / (batch_idx + 1), loss2 / (batch_idx + 1),
+                              accuracy, p, r, F1, (batch_idx+1) * args.batch_size / timer.sum()))
             timer.start()
     return train_loss / len(trainloader), F1
 

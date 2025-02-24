@@ -4,8 +4,10 @@ import numpy as np
 import subprocess
 import re
 from itertools import product
+import argparse
 
-def test(HyperParameters, Origin_domain_nums):
+
+def test(HyperParameters, Origin_domain_nums, args):
 
     path = "results/MateModel_Hyper"
     indexes = pd.MultiIndex.from_product(
@@ -26,7 +28,7 @@ def test(HyperParameters, Origin_domain_nums):
 
             print("testing...")
             test_cmd = ["python", "Step2_Layer-wise_Hyperparameter_Inferring/test.py", 
-                        "-H", hp, "-o", str(od), "--device", "laptop"]
+                        "-H", hp, "-o", str(od), "--device", args.device]
             test_result = subprocess.run(test_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
             for line in test_result.stdout.split("\n"):
                 if line.startswith("TEST"):
@@ -37,33 +39,44 @@ def test(HyperParameters, Origin_domain_nums):
     print(df)
     return df
 
-def read_epoch(HyperParameters, Origin_domain_nums):
+def read_epoch(HyperParameters, Origin_domain_nums, columns):
     path = "results/MateModel_Hyper"
     indexes = pd.MultiIndex.from_product(
         [HyperParameters, Origin_domain_nums],
         names=["HyperParameters", "Origin_domain_nums"]
     )
-    columns = ["EPOCH"]
-    df = pd.DataFrame(np.zeros((len(HyperParameters) * len(Origin_domain_nums), 1)), index=indexes, columns=columns)
+    df = pd.DataFrame(np.zeros((len(HyperParameters) * len(Origin_domain_nums), len(columns))), index=indexes, columns=columns)
     for hp in HyperParameters:
         for od in Origin_domain_nums:
             log = "HyperParameter:{}\t Origin_domain_nums:{}\t \nloading checkpoint..."
             print(log.format(hp, od))
             file = path + "/" + hp + "_" + str(od) + "_train_ckpt.pth"
-            checkpoint = torch.load(file)
-            df.loc[(hp, od), "EPOCH"] = checkpoint["epoch"]
+            checkpoint = torch.load(file, map_location=torch.device('cpu'))
+            for col in columns:
+                if col not in checkpoint.keys():
+                    df.loc[(hp, od), col] = float("nan")
+                    continue
+                if col in ["acc", "f1", "loss_value"]:
+                    df.loc[(hp, od), col] = checkpoint[col][0]
+                else:
+                    df.loc[(hp, od), col] = checkpoint[col]
     return df
 
 if __name__ == "__main__":
     # read epoch
-    # HyperParameters = ["kernel_size", "out_channels", "stride"]
-    # Origin_domain_nums = [1,2,3]
-    # df = read_epoch(HyperParameters, Origin_domain_nums)
-    # print(df)
+    HyperParameters = ["kernel_size", "out_channels"]
+    Origin_domain_nums = [1,2,3]
+    columns = ["epoch", "acc", "f1", "loss_value"]
+    df = read_epoch(HyperParameters, Origin_domain_nums, columns)
+    print(df)
 
     # test
-    HyperParameters = ["kernel_size", "out_channels", "stride"]
-    Origin_domain_nums = [1,2,3]
-    df = test(HyperParameters, Origin_domain_nums)
-    with pd.ExcelWriter("results/results.xlsx", if_sheet_exists="replace", mode="a") as writer:
-        df.to_excel(writer, sheet_name="train2")
+    # parser = argparse.ArgumentParser(description='collect data')
+    # parser.add_argument("--device", type=str, default="autodl", help="laptop or autodl")
+    # args = parser.parse_args()
+    # HyperParameters = ["kernel_size", "out_channels", "stride"]
+    # Origin_domain_nums = [1,2,3]
+    # df = test(HyperParameters, Origin_domain_nums, args)
+
+    # with pd.ExcelWriter("results/results.xlsx", if_sheet_exists="replace", mode="a") as writer:
+    #     df.to_excel(writer, sheet_name="append")

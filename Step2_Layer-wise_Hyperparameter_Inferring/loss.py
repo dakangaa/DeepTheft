@@ -140,10 +140,10 @@ class CompLoss(nn.Module):
 
             # compute log_prob
             exp_logits = torch.exp(logits) 
-            log_prob = logits - torch.log(exp_logits.sum(1, keepdim=True))
+            log_prob = logits - torch.log(exp_logits.sum(1, keepdim=True)) # log(exp(logits)) - log(exp(logits).sum())
 
             # compute mean of log-likelihood over positive
-            mean_log_prob_pos = (mask * log_prob).sum(1) 
+            mean_log_prob_pos = (mask * log_prob).sum(1)  # 类内相似度
 
             # loss
             loss = - (self.temperature / self.base_temperature) * mean_log_prob_pos.mean()
@@ -255,26 +255,24 @@ class DisLoss(nn.Module):
         num_cls = self.args.num_classes
         # 更新类原型
         for j in range(len(features)):
-            prototypes[labels[j].item()] = F.normalize(prototypes[labels[j].item()] *self.args.proto_m + features[j]*(1-self.args.proto_m), dim=0)
+            prototypes[labels[j].item()] = F.normalize(prototypes[labels[j].item()] *self.args.proto_m 
+                                                       + features[j]*(1-self.args.proto_m), dim=0)
         self.prototypes = prototypes.detach()
-        labels = torch.arange(0, num_cls).cuda()
-        labels = labels.contiguous().view(-1, 1)
+        labels = torch.arange(0, num_cls).cuda() # 0 ~ (num_cls - 1)
+        labels = labels.contiguous().view(-1, 1) # (num_cls, 1)
 
-        mask = (1- torch.eq(labels, labels.T).float()).cuda()
+        mask = (1- torch.eq(labels, labels.T).float()).cuda() # 对角线上的项都为0:排除自相似项
 
         logits = torch.div(
             torch.matmul(prototypes, prototypes.T),
-            self.temperature)
+            self.temperature) #　（Ｎ，　Ｎ）
 
-        logits_mask = torch.scatter(
-            torch.ones_like(mask),
-            1,
-            torch.arange(num_cls).view(-1, 1).cuda(),
-            0
-        )# 对角线上的项都为0:排除自相似项
-        mask = mask * logits_mask
         mean_prob_neg = torch.log((mask * torch.exp(logits)).sum(1) / mask.sum(1))
-        mean_prob_neg = mean_prob_neg[~torch.isnan(mean_prob_neg)]
+        # DEBUG:
+        if torch.isnan(mean_prob_neg).sum().item() > 0:
+            print(f"nan:{torch.isnan(mean_prob_neg).sum().item()}")
+            
+        mean_prob_neg = mean_prob_neg[~torch.isnan(mean_prob_neg)] # 类间相似度
         loss = self.temperature / self.base_temperature * mean_prob_neg.mean()
         return loss
 

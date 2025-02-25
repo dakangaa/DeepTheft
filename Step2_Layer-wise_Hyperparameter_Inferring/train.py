@@ -62,10 +62,10 @@ class F1_score(nn.Module):
         recall = self.tp / (self.tp + self.fn + self.epsilon)  # 召回率：实际为正的样本中预测正确的比例
 
         accuracy = self.tp.sum() / (self.tp.sum() + self.tn.sum() + self.fp.sum() + self.fn.sum())
-        accuracy = accuracy.item() * self.num_classes # 乘以类别？
+        accuracy = accuracy.item() * self.num_classes # 抵消分母的n倍样本量
 
         f1 = 2 * (precision * recall) / (precision + recall + self.epsilon)
-        f1 = f1.mean().item() #类别与样本无关，每一种类别出现的概率是一样的
+        f1 = f1.mean().item() 
         return accuracy*100., precision.mean().item()*100., recall.mean().item()*100., f1*100.
 
 
@@ -165,6 +165,8 @@ def save_step(epoch, acc, test_index, f1, loss):
         if not os.path.exists(args.path):
             os.makedirs(args.path)
         torch.save(state, path)
+        print("save_path:" + path)
+
         best_f1 = f1
         best_loss = loss
     else:
@@ -236,6 +238,7 @@ if __name__ == '__main__':
         assert args.pretrain == True, "正式训练需要加载预训练数据"
         data = RaplLoader(args, input_size=input_size) 
     args.num_classes = data.num_classes
+    print("load_path:" + path)
         
     trainloader, valloader = data.get_loader()
     if args.pretrain:

@@ -36,6 +36,16 @@ class Resize(torch.nn.Module):
         out = np.array(out).transpose([1, 0]) # 对x转置
         return out
 
+class Crop(torch.nn.Module):
+    # 裁剪/填充处理
+    def __init__(self, length):
+        super().__init__()
+        self.length = length
+
+    def forward(self, inputs):
+        out = [inputs[i % inputs.shape[0]] for i in range(0, self.length)] 
+        out = np.array(out).transpose([1, 0]) # 对x转置
+        return out
 
 class ToTargets(torch.nn.Module):
     def __init__(self, mode, label, layer_type, regression=False):
@@ -130,11 +140,19 @@ class RaplLoader(object):
             # val: 对应的一个超参数kernel_size(可调)
         else:
             self.test = self.preprocess()
-                
-        self.transform = transforms.Compose([
-            Normalization(), # 归一化
-            Resize(1024), # 子采样缩放到1024长度
-        ]) # 对x处理的模块
+        # 数据预处理
+        use_crop = ["kernel_size", "stride"]
+        if args.HyperParameter in use_crop:
+            self.transform = transforms.Compose([
+                Normalization(), # 归一化
+                Crop(1024), # 子采样缩放到1024长度
+            ])
+        else:
+            self.transform = transforms.Compose([
+                Normalization(), # 归一化
+                Resize(1024), # 子采样缩放到1024长度
+            ])
+        # 对x处理的模块
         self.target_transform = transforms.Compose([
             ToTargets(args.HyperParameter, self.label, self.layer_type, indirect_regression),#对目标值进行缩放(K, S, C_o)
         ]) # 对y处理的模块

@@ -127,7 +127,7 @@ def eval_step(epoch, arg, loader):
             loss = criterion(pred, targets)
             pred = torch.argmax(pred, dim=1)
         else:
-            loss, pred = criterion(net, inputs, targets, domain)
+            loss, pred, _, _ = criterion(net, inputs, targets, domain)
 
         eval_loss += loss.item()
         accuracy, p, r, F1 = f1(pred, targets)
@@ -157,11 +157,12 @@ def save_step(epoch, acc, test_index, f1, loss):
         if args.pretrain:
             path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + "pretrain" + '_ckpt.pth'
         else:
-            if args.use_domain:
-                path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + "train_usedomain" + '_ckpt.pth'
-            else:
-                path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + "train" + '_ckpt.pth'
-
+            # if args.use_domain:
+            #     path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + "train_usedomain" + '_ckpt.pth'
+            # else:
+            path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + "train" + '_ckpt.pth'
+        print("save path:" + path)
+        
         if not os.path.exists(args.path):
             os.makedirs(args.path)
         torch.save(state, path)
@@ -222,23 +223,21 @@ if __name__ == '__main__':
             data = RaplLoader(args, input_size=input_size, test_index = test_index)
         else:
             # 重载正式训练
-            if args.use_domain:
-                path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_train_usedomain" + '_ckpt.pth' 
-            else:
-                path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_train" + '_ckpt.pth' 
+            # if args.use_domain:
+            #     path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_train_usedomain" + '_ckpt.pth' 
+            # else:
+            path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_train" + '_ckpt.pth' 
             if not os.path.exists(path):
                 # 正式训练未进行，使用预训练参数
-                first_train = True # 第一次正式训练
+                first_train = True # 第一次正式训练 加载预训练数据
                 path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_pretrain" + '_ckpt.pth'
             checkpoint = torch.load(path)
             test_index = checkpoint["test_index"] 
             data = RaplLoader(args, input_size=input_size, test_index = test_index)
+        print("load path:" + path)
     else:
-        # 初始预训练
-        assert args.pretrain == True, "正式训练需要加载预训练数据"
         data = RaplLoader(args, input_size=input_size) 
     args.num_classes = data.num_classes
-    print("load_path:" + path)
         
     trainloader, valloader = data.get_loader()
     if args.pretrain:
@@ -271,6 +270,11 @@ if __name__ == '__main__':
         best_acc = [0]
         start_epoch = 0
         best_f1 = [0]
+        if not args.pretrain:
+            # 不进行预训练，直接正式训练
+            best_acc = [0]
+            best_f1 = [0]
+            best_loss = [float("inf")] # 正式训练的总loss
 
     f1 = F1_score(num_classes=data.num_classes) # y_pred y_true
 

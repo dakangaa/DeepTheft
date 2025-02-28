@@ -68,7 +68,7 @@ class CompLoss(nn.Module):
     Compactness Loss with class-conditional prototypes
     类内变异？
     '''
-    def __init__(self, args, temperature=0.07, base_temperature=0.07):
+    def __init__(self, args, temperature=0.1, base_temperature=0.1):
         # use_domain : 是否额外使用一个loss项，使同域不同类的样本分离
         super(CompLoss, self).__init__()
         self.args = args

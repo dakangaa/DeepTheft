@@ -205,6 +205,8 @@ if __name__ == '__main__':
     parser.add_argument("--temperature", default=0.1, type=float, help="温度系数tao")
     parser.add_argument('--proto_m', default= 0.95, type=float, help='weight of prototype update')
     args = parser.parse_args()
+    learning_rate = {"kernel_size":0.01, "stride":0.001, "out_channels":0.01}
+    args.lr = learning_rate[args.HyperParameter]
     if torch.cuda.is_available():
         device = torch.device('cuda')
         cudnn.benchmark = True

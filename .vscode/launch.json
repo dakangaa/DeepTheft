@@ -29,7 +29,7 @@
                 "-o", "1",
                 // "--pretrain"
                 // "--resume", 
-                "--w", "0.1",
+                "--lr", "0.001",
                 "--device", "autodl" // "laptop" or "autodl"
             ]
         },

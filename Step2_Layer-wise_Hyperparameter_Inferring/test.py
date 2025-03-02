@@ -51,7 +51,9 @@ test_loader = data.get_loader()
 args.num_classes = data.num_classes
 
 print("Loading Model...")
-check_point = torch.load('results/MateModel_Hyper' + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_train" + '_ckpt.pth') 
+path = 'results/MateModel_Hyper' + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_train" + '_ckpt.pth'
+print(f"load file path:{path}")
+check_point = torch.load(path) 
 prototypes = check_point["loss"]["disLoss.prototypes"]
 net = MateModel_Hyper.Model(args, input_channels=2)
 net.load_state_dict(check_point["net"])

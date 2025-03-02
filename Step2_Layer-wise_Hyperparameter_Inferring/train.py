@@ -91,19 +91,25 @@ def train_step(epoch):
             pred = torch.argmax(pred, dim=1)
         else:
             loss, pred, loss_dis, loss_comp = criterion(net, inputs, targets, domain)
+            loss1 += loss_dis.item()
+            loss2 += loss_comp.item()
         loss.backward()
         optimizer.step()
 
         train_loss += loss.item()
-        loss1 += loss_dis.item()
-        loss2 += loss_comp.item()
+
         accuracy, p, r, F1 = f1(pred, targets)
 
         timer.stop()
         if (batch_idx+1) % 100 == 0:
-            logs = '{} - Epoch:[{}][{}/{}]\tLoss:{:.3f}\tLoss_Dis:{:.3f}\tLoss_Comp:{:.3f}\tAcc:{:.3f}\tP:{:.3f}\tR:{:.3f}\tF1:{:.3f}\t{:.3f}samples/sec'
-            print(logs.format('TRAIN', epoch, (batch_idx+1), len(trainloader), train_loss / (batch_idx + 1), loss1 / (batch_idx + 1), loss2 / (batch_idx + 1),
-                              accuracy, p, r, F1, (batch_idx+1) * args.batch_size / timer.sum()))
+            if args.pretrain:
+                logs = '{} - Epoch:[{}][{}/{}]\tLoss:{:.3f}\tAcc:{:.3f}\tP:{:.3f}\tR:{:.3f}\tF1:{:.3f}\t{:.3f}samples/sec'
+                print(logs.format('TRAIN', epoch, (batch_idx+1), len(trainloader), train_loss / (batch_idx + 1),
+                                  accuracy, p, r, F1, (batch_idx+1) * args.batch_size / timer.sum()))
+            else:
+                logs = '{} - Epoch:[{}][{}/{}]\tLoss:{:.3f}\tLoss_Dis:{:.3f}\tLoss_Comp:{:.3f}\tAcc:{:.3f}\tP:{:.3f}\tR:{:.3f}\tF1:{:.3f}\t{:.3f}samples/sec'
+                print(logs.format('TRAIN', epoch, (batch_idx+1), len(trainloader), train_loss / (batch_idx + 1), loss1 / (batch_idx + 1), loss2 / (batch_idx + 1),
+                                  accuracy, p, r, F1, (batch_idx+1) * args.batch_size / timer.sum()))
             timer.start()
     return train_loss / len(trainloader), F1
 
@@ -205,8 +211,9 @@ if __name__ == '__main__':
     parser.add_argument("--temperature", default=0.1, type=float, help="温度系数tao")
     parser.add_argument('--proto_m', default= 0.95, type=float, help='weight of prototype update')
     args = parser.parse_args()
-    learning_rate = {"kernel_size":0.01, "stride":0.001, "out_channels":0.01}
-    args.lr = learning_rate[args.HyperParameter]
+    if not args.pretrain:
+        learning_rate = {"kernel_size":0.01, "stride":0.001, "out_channels":0.01}
+        args.lr = learning_rate[args.HyperParameter]
     if torch.cuda.is_available():
         device = torch.device('cuda')
         cudnn.benchmark = True
@@ -281,5 +288,9 @@ if __name__ == '__main__':
     f1 = F1_score(num_classes=data.num_classes) # y_pred y_true
 
     optimizer = torch.optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
+    # 恢复训练需要显式设置initial_lr参数
+    if start_epoch >= 0:
+        for param_group in optimizer.param_groups:
+            param_group['initial_lr'] = args.lr 
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=20, last_epoch=start_epoch)
     train()

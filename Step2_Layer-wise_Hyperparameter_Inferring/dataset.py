@@ -9,8 +9,8 @@ import os
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 models = {'vgg':0, 'vgg_bn':1, 'resnet_basicblock':2, 'resnet_bottleneck':3, 'custom_net':4, 'custom_net_bn':5}
-samples = [256, 256, 2592, 2592, 2728, 2728]
-test_samples = [26, 26, 268, 268, 282, 282]
+sample_size = [256, 256, 2592, 2592, 2728, 2728]
+test_sample_size = [26, 26, 268, 268, 282, 282]
 
 labels_name = {'conv2d': 0, 'batch_norm': 1, 'relu_': 2,
                'max_pool2d': 3, 'adaptive_avg_pool2d': 4,
@@ -116,8 +116,8 @@ class RaplLoader(object):
         if test_index == None:
             self.test_index = []
             np.random.seed(0)
-            for i in range(len(samples)):
-                index = np.random.choice(samples[i], test_samples[i], replace=False)
+            for i in range(len(sample_size)):
+                index = np.random.choice(sample_size[i], test_sample_size[i], replace=False)
                 self.test_index.append(index)
         else:
             self.test_index = test_index
@@ -141,7 +141,7 @@ class RaplLoader(object):
         else:
             self.test = self.preprocess()
         # 数据预处理
-        use_crop = ["kernel_size", "stride"]
+        use_crop = ["kernel_size"]
         if args.HyperParameter in use_crop:
             self.transform = transforms.Compose([
                 Normalization(), # 归一化

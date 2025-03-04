@@ -284,7 +284,8 @@ if __name__ == '__main__':
             best_acc = [0]
             best_f1 = [0]
             best_loss = [float("inf")] # 正式训练的总loss
-
+    print(f"best_acc:{best_acc:.2f} best_f1:{best_f1:.2f}")
+    
     f1 = F1_score(num_classes=data.num_classes) # y_pred y_true
 
     optimizer = torch.optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)

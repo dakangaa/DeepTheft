@@ -28,8 +28,7 @@
                 "-H", "stride", // option: kernel_size, stride, out_channels
                 "-o", "1",
                 // "--pretrain"
-                // "--resume", 
-                "--lr", "0.001",
+                "--resume", 
                 "--device", "autodl" // "laptop" or "autodl"
             ]
         },

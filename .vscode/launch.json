@@ -8,8 +8,8 @@
             "console": "integratedTerminal",
             "args": [
                 "--layer_type", "conv2d",
-                "--device", "autodl",  // "laptop" or "autodl"
-                "--H", "kernel_size",
+                "--device", "laptop",  // "laptop" or "autodl"
+                "--H", "stride",
                 "-o", "1"
             ]
         },
@@ -27,10 +27,10 @@
             "args": [
                 "-H", "stride", // option: kernel_size, stride, out_channels
                 "-o", "1",
-                // "--pretrain"
-                // "--resume", 
-                "--lr", "0.001",
-                "--device", "autodl" // "laptop" or "autodl"
+                // "--pretrain",
+                "--resume", 
+                // "--lr", "0.001",
+                "--device", "laptop" // "laptop" or "autodl"
             ]
         },
         {

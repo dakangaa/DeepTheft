@@ -188,7 +188,7 @@ if __name__ == '__main__':
     parser.add_argument("--device", type=str, help="运行的机器")
     parser.add_argument('--lr', default=0.01, type=float, help='learning rate')
     parser.add_argument('--batch_size', default=128, type=int, help='mini-batch size')
-    parser.add_argument('--epochs', default=10, type=int, help='number of total epochs to run')
+    parser.add_argument('--epochdata, transform=None, target_transform=None, use_domain=Falses', default=10, type=int, help='number of total epochs to run')
     parser.add_argument('--path', default='results/MateModel_Hyper', type=str, help='save_path')
     parser.add_argument('--workers', default=0, type=int, help='number of data loading workers')
     parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')

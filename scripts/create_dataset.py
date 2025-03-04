@@ -14,7 +14,7 @@ def preprocess(layer_type):
     hph5 = h5py.File(r'../autodl-tmp/dataset/hp.h5', 'r')
     for dom in domains: 
         for k in datah5['data'].keys():
-            if domain_index_dict(k.split(")")[1]) == dom: 
+            if domain_index_dict[k.split(")")[1]] == dom: 
                 d = datah5['data'][k][:]
                 pos = datah5['position'][k][:]
                 hp = hph5[k][:]
@@ -48,15 +48,13 @@ data_x, data_y, offset = preprocess(layer_type)
 output_file_path = rf'../autodl-tmp/dataset/{layer_type}.h5'
 with h5py.File(output_file_path, 'w') as f:
     # 创建 trace 数据集
-    trace_dtype = h5py.vlen_dtype(np.float32)  # 使用变长数据类型存储不同长度的数组
-    trace_dataset = f.create_dataset('trace', (len(data_x),), dtype=trace_dtype)
+    trace_group = f.create_group('trace')
     for i, arr in enumerate(data_x):
-        trace_dataset[i] = arr  # 存储每个 numpy 数组
+        trace_group.create_dataset(str(i), data=arr)  # 存储每个 numpy 数组
 
     # 创建 hp 数据集
-    hp_dtype = h5py.vlen_dtype(np.float32)  # 使用变长数据类型存储不同长度的数组
-    hp_dataset = f.create_dataset('hp', (len(data_y),), dtype=hp_dtype)
+    hp_group = f.create_group('hp')
     for i, arr in enumerate(data_y):
-        hp_dataset[i] = arr  # 存储每个 numpy 数组
+        hp_group.create_dataset(str(i), data=arr)  # 存储每个 numpy 数组
 
 print("OK")

@@ -6,7 +6,8 @@ import torchvision.transforms as transforms
 import matplotlib.pyplot as plt
 import h5py
 import os
-import random
+import time
+from utils import Timer
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 class Normalization(torch.nn.Module):
@@ -74,39 +75,43 @@ class ToTargets(torch.nn.Module):
                 targets = np.log2(targets) - 6
         return targets
 
-
+# DEBUG
+rapl_timer = Timer()
 class Rapl(torch.utils.data.Dataset):
     """
     加载指定index的数据
     """
     def __init__(self, file_path, index_dict, transform, target_transform):
         super().__init__()
-        self.index_dict = index_dict # TODO：优化：避免深拷贝
+        self.index_dict = index_dict 
         self.bunch_size = 600 * 128
-        self.point = 0 # 指向下一个bunch的起始下标
+        self.begin = -1 # 当前bunch的位置
+        self.end = -1
         self.length = len(index_dict)
         self.bunch_data = {"trace":[], "hp":[]}
         self.file_path = file_path
+        self._load_bunch(0)
 
         self.transform = transform
         self.target_transform = target_transform
+
     
-    def _load_bunch(self):
-        end = max(self.point + self.bunch_size, self.length)
+    def _load_bunch(self, index):
+        rapl_timer.start()
+        self.begin = index // self.bunch_size * self.bunch_size
+        self.end = min(self.begin + self.bunch_size, self.length)
         self.bunch_data["trace"].clear()
         self.bunch_data["hp"].clear()
         with h5py.File(self.file_path, "r") as f:
             dataset_trace = f["trace"]
             dataset_hp = f["hp"]
-            self.bunch_data["trace"] = dataset_trace[self.index_dict[self.point : end]]
-            self.bunch_data["hp"] = dataset_hp[self.index_dict[self.point : end]]
+            self.bunch_data["trace"] = [dataset_trace[self.index_dict[i]][:, 1:3] for i in range(self.begin, self.end)]
+            self.bunch_data["hp"] = [dataset_hp[self.index_dict[i]][:] for i in range(self.begin, self.end)]
+        rapl_timer.stop()
         
-        self.point = end + 1
-
-
     def __getitem__(self, index):
-        if index >= self.point:
-            self._load_bunch()
+        if index < self.begin or index >= self.end:
+            self._load_bunch(index)
         trace = self.transform(self.bunch_data["trace"][index % self.bunch_size])
         hp = self.target_transform(self.bunch_data["hp"][index % self.bunch_size])
         return trace, hp
@@ -114,7 +119,11 @@ class Rapl(torch.utils.data.Dataset):
 
     def __len__(self):
         return self.length
-
+    
+    def shuffle(self):
+        torch.manual_seed(int(time.time()))
+        new_order = torch.randperm(len(self.index_dict))
+        self.index_dict = [self.index_dict[new_order[i]] for i in range(len(self.index_dict))]
 
 class RaplLoader(object):
     def __init__(self, args, no_val=False, input_size=["224"], indirect_regression=False):
@@ -132,10 +141,10 @@ class RaplLoader(object):
         self.is_test = no_val
         self.input_size = input_size # 样本的input_size
         self.no_val = no_val
-        self.path = "" #TODO
+        self.path = r"dataset/conv2d.h5" 
         self.seed = 0
         # 数据预处理
-        use_crop = ["kernel_size", "stride"]
+        use_crop = ["kernel_size", "stride"] #TODO: 检验kernelsize
         if args.HyperParameter in use_crop:
             self.transform = transforms.Compose([
                 Normalization(), # 归一化
@@ -151,51 +160,54 @@ class RaplLoader(object):
             ToTargets(args.HyperParameter, self.label, self.layer_type, indirect_regression),#对目标值进行缩放(K, S, C_o)
         ]) # 对y处理的模块
 
-    def get_index_dict(self, input_size, no_val=False):
-        offset = [] #TODO: 标记样本域的最后一个样本的序号
+    def get_index_dict(self, input_size="224", no_val=False):
+        offset = [442344, 884688, 1327032, 1769376, 2211720] 
         i = {"160":0, "192":1, "224":2, "299":3, "331":4}[input_size]
         begin = offset[i-1] if i-1 >= 0 else 0
         end = offset[i]
-        len = end - begin
+        length = end - begin
         val_rate = 0.10
         if no_val:
-            index = list(range(begin, end))
-            index_dict = {k: v for k, v in enumerate(index)}
-            return index_dict
+            return [str(v) for v in range(begin, end)]
         else:
-            random.seed(self.seed)
-            index = list(range(begin, end))
-            index_val = random.sample(index, len * val_rate)
-            index = [x for x in index if x not in index_val]
-            index_dict = {k: v for k, v in enumerate(index)}
-            index_dict_val = {k: v for k, v in enumerate(index_val)}
+            torch.manual_seed(self.seed)
+            index_dict_val = (torch.randperm(end - begin) + begin).tolist()
+            index_dict = [str(i) for i in index_dict_val[begin + int(length * val_rate) : end]]
+            index_dict_val = [str(i) for i in index_dict_val[begin : begin + int(length * val_rate)]]
             return index_dict, index_dict_val
 
 
     def get_loader(self):
         # index_dict
         if self.no_val:
-            index_dict = {}
+            index_dict = []
             for size in self.input_size:
-                index_dict.append(self.get_index_dict(size, self.no_val))
-            dataset = Rapl(self.file_path, index_dict,self.transform, self.target_transform)
+                index_dict.extend(self.get_index_dict(input_size=size, no_val=self.no_val))
+            self.dataset = Rapl(self.path, index_dict,self.transform, self.target_transform)
             dataloader = torch.utils.data.DataLoader(
-                dataset, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers, pin_memory=True)
+                self.dataset, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers, pin_memory=True)
+                # 是否打乱由index_dict决定
             return dataloader
         else:
-            index_dict = {}
-            index_dict_val = {}
+            index_dict = []
+            index_dict_val = []
+            
             for size in self.input_size:
-                _1, _2 = self.get_index_dict(size, self.no_val)
-                index_dict.append(_1)
-                index_dict_val.append(_2)
-            dataset = Rapl(self.file_path, index_dict,self.transform, self.target_transform)
-            dataset_val = Rapl(self.file_path, index_dict_val,self.transform, self.target_transform)
+                _1, _2 = self.get_index_dict(input_size=size, no_val=self.no_val)
+                index_dict.extend(_1)
+                index_dict_val.extend(_2)
+            self.dataset = Rapl(self.path, index_dict,self.transform, self.target_transform)
+            self.dataset_val = Rapl(self.path, index_dict_val,self.transform, self.target_transform)
             dataloader = torch.utils.data.DataLoader(
-                dataset, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers, pin_memory=True)
+                self.dataset, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers, pin_memory=True)
             dataloader_val = torch.utils.data.DataLoader(
-                dataset_val, batch_size=self.batch_size, num_workers=self.num_workers, pin_memory=True)
+                self.dataset_val, batch_size=self.batch_size, num_workers=self.num_workers, pin_memory=True)
             return dataloader, dataloader_val
+    
+    def shuffle_dataset(self):
+        # 打乱训练集数据
+        self.dataset.shuffle()    
+    
                 
 
         

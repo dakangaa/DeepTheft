@@ -1,14 +1,13 @@
 import MateModel_Hyper
 import torch
 import dataset
-import train
-import torch.nn as nn
 import argparse
+from utils import F1_score, Timer
 
 # 对未知input_size测试
 def eval(epoch, args, loader, prototypes):
     net.eval()
-    timer = train.Timer()
+    timer = Timer()
     timer.start()
     with torch.no_grad():
         accuracy, F1 = 0, 0
@@ -46,7 +45,7 @@ args.mode = "TEST"
 device = torch.device("cuda")
 
 print("Loading data...")
-data = dataset.RaplLoader(args, input_size = [args.input_size], is_test=True)
+data = dataset.RaplLoader(args, input_size = [args.input_size], no_val=True)
 test_loader = data.get_loader()
 args.num_classes = data.num_classes
 
@@ -58,5 +57,5 @@ net.load_state_dict(check_point["net"])
 net.to(device)
 last_acc = check_point["acc"]
 train_epoch = check_point["epoch"]
-f1 = train.F1_score(num_classes=data.num_classes)
+f1 = F1_score(num_classes=data.num_classes)
 eval(train_epoch, args, test_loader, prototypes)

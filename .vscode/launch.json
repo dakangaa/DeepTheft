@@ -29,8 +29,8 @@
                 "-o", "1",
                 // "--pretrain",
                 "--resume", 
-                // "--lr", "0.001",
-                "--device", "laptop" // "laptop" or "autodl"
+                "--device", "laptop", // "laptop" or "autodl"
+                "--workers", "1"
             ]
         },
         {

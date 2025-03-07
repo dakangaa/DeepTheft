@@ -1,78 +1,17 @@
 import torch
-import torch.nn as nn
 import torch.backends.cudnn as cudnn
-import torch.nn.functional as F
 import os
 import argparse
 import MateModel_Hyper
-from dataset import RaplLoader
-import time
-import numpy as np
+from dataset import RaplLoader, rapl_timer
 import loss
-
-class Timer:
-    """Record multiple running times."""
-    def __init__(self):
-        """Defined in :numref:`sec_minibatch_sgd`"""
-        self.times = []
-
-    def start(self):
-        """Start the timer."""
-        self.tik = time.time()
-
-    def stop(self):
-        """Stop the timer and record the time in a list."""
-        self.times.append(time.time() - self.tik)
-        return self.times[-1]
-
-    def avg(self):
-        """Return the average time."""
-        return sum(self.times) / len(self.times)
-
-    def sum(self):
-        """Return the sum of time."""
-        return sum(self.times)
-
-    def cumsum(self):
-        """Return the accumulated time."""
-        return np.array(self.times).cumsum().tolist()
-
-class F1_score(nn.Module):
-    def __init__(self, num_classes, epsilon=1e-7):
-        super().__init__()
-        self.num_classes = num_classes
-        self.epsilon = epsilon
-        self.tp, self.tn, self.fp, self.fn = 0, 0, 0, 0
-
-    def reset(self):
-        self.tp, self.tn, self.fp, self.fn = 0, 0, 0, 0
-
-    def forward(self, y_pred, y_true):
-        assert y_pred.ndim == 1, "y为正确类别数据"
-        assert y_true.ndim == 1
-        y_true = F.one_hot(y_true, self.num_classes)
-        y_pred = F.one_hot(y_pred, self.num_classes)
-
-        self.tp += (y_true * y_pred).sum(0)
-        self.tn += ((1 - y_true) * (1 - y_pred)).sum(0)
-        self.fp += ((1 - y_true) * y_pred).sum(0)
-        self.fn += (y_true * (1 - y_pred)).sum(0)
-
-        precision = self.tp / (self.tp + self.fp + self.epsilon) # 精确率：预测为正的样本中预测正确的比例
-        recall = self.tp / (self.tp + self.fn + self.epsilon)  # 召回率：实际为正的样本中预测正确的比例
-
-        accuracy = self.tp.sum() / (self.tp.sum() + self.tn.sum() + self.fp.sum() + self.fn.sum())
-        accuracy = accuracy.item() * self.num_classes # 抵消分母的n倍样本量
-
-        f1 = 2 * (precision * recall) / (precision + recall + self.epsilon)
-        f1 = f1.mean().item() 
-        return accuracy*100., precision.mean().item()*100., recall.mean().item()*100., f1*100.
-
+import utils
+import torch.nn as nn
 
 def train_step(epoch):
     net.train()
 
-    timer = Timer()
+    timer = utils.Timer()
     timer.start()
     train_loss, accuracy, F1, loss1, loss2 = 0, 0, 0, 0, 0
     f1.reset()
@@ -104,6 +43,8 @@ def train_step(epoch):
             logs = '{} - Epoch:[{}][{}/{}]\tLoss:{:.3f}\tLoss_Dis:{:.3f}\tLoss_Comp:{:.3f}\tAcc:{:.3f}\tP:{:.3f}\tR:{:.3f}\tF1:{:.3f}\t{:.3f}samples/sec'
             print(logs.format('TRAIN', epoch, (batch_idx+1), len(trainloader), train_loss / (batch_idx + 1), loss1 / (batch_idx + 1), loss2 / (batch_idx + 1),
                               accuracy, p, r, F1, (batch_idx+1) * args.batch_size / timer.sum()))
+            print(f"loading bunch use time {rapl_timer.sum() / timer.sum() * 100:.2f}%")
+            print("\n")
             timer.start()
     return train_loss / len(trainloader), F1
 
@@ -137,19 +78,18 @@ def eval_step(epoch, arg, loader):
     return eval_loss / len(loader), accuracy, F1
 
 
-def save_step(epoch, acc, test_index, f1, loss):
+def save_step(epoch, acc, f1, loss):
     global best_f1, best_loss
     if args.pretrain:
         isSave = sum(f1) > sum(best_f1)
     else:
         isSave = sum(loss) < sum(best_loss)
     if isSave:
-        print('saving...', end='\n\n')
+        print('saving...')
         state = {
             'net': net.state_dict(),
-            'epoch': epoch,
+            'epoch': epoch+1,
             "acc": acc, 
-            "test_index": test_index,
             "f1": f1,
             "loss": criterion.state_dict(),
             "loss_value": loss
@@ -166,7 +106,6 @@ def save_step(epoch, acc, test_index, f1, loss):
         if not os.path.exists(args.path):
             os.makedirs(args.path)
         torch.save(state, path)
-        print("save_path:" + path)
 
         best_f1 = f1
         best_loss = loss
@@ -176,19 +115,21 @@ def save_step(epoch, acc, test_index, f1, loss):
 
 def train():
     for epoch in range(start_epoch, start_epoch+args.epochs):
-        # epoch += 1
+        print(f">>>>>>>>>>>>>>>>>> EPOCH {epoch} <<<<<<<<<<<<<<<<<<")
+        print(f"lr:{scheduler.get_last_lr()}")
         train_loss, train_acc = train_step(epoch)
         val_loss, val_acc, val_f1 = eval_step(epoch, "VAL", valloader)
-        save_step(epoch, [val_acc], data.test_index, [val_f1], [val_loss])
+        save_step(epoch, [val_acc], [val_f1], [val_loss])
         scheduler.step()
+        data.shuffle_dataset()
+        print("\n")
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='DeepTheft Training')
     parser.add_argument("--device", type=str, help="运行的机器")
-    parser.add_argument('--lr', default=0.01, type=float, help='learning rate')
     parser.add_argument('--batch_size', default=128, type=int, help='mini-batch size')
-    parser.add_argument('--epochdata, transform=None, target_transform=None, use_domain=Falses', default=10, type=int, help='number of total epochs to run')
+    parser.add_argument('--epochs', default=10, type=int, help='number of total epochs to run')
     parser.add_argument('--path', default='results/MateModel_Hyper', type=str, help='save_path')
     parser.add_argument('--workers', default=0, type=int, help='number of data loading workers')
     parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
@@ -212,7 +153,7 @@ if __name__ == '__main__':
         cudnn.benchmark = True
     else:
         device = torch.device('cpu')
-    # 数据重载
+    # 设定源域
     input_size = ["160", "192", "224", "299", "331"][0 : args.origin_domain_num]
 
     if args.resume:
@@ -221,8 +162,7 @@ if __name__ == '__main__':
             # 重载预训练
             path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + "pretrain" + '_ckpt.pth'
             checkpoint = torch.load(path)
-            test_index = checkpoint["test_index"] 
-            data = RaplLoader(args, input_size=input_size, test_index = test_index)
+            data = RaplLoader(args, no_val=False, input_size=input_size)
         else:
             # 重载正式训练
             # if args.use_domain:
@@ -234,11 +174,10 @@ if __name__ == '__main__':
                 first_train = True # 第一次正式训练 加载预训练数据
                 path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_pretrain" + '_ckpt.pth'
             checkpoint = torch.load(path)
-            test_index = checkpoint["test_index"] 
-            data = RaplLoader(args, input_size=input_size, test_index = test_index)
+            data = RaplLoader(args, no_val=False, input_size=input_size)
         print("load path:" + path)
     else:
-        data = RaplLoader(args, input_size=input_size) 
+        data = RaplLoader(args, no_val=False, input_size=input_size) 
     args.num_classes = data.num_classes
         
     trainloader, valloader = data.get_loader()
@@ -268,18 +207,22 @@ if __name__ == '__main__':
             best_acc = checkpoint["acc"]
             best_f1 = checkpoint["f1"]
     else:
-        # 预训练
         best_acc = [0]
-        start_epoch = 0
+        start_epoch = -1
         best_f1 = [0]
         if not args.pretrain:
             # 不进行预训练，直接正式训练
             best_acc = [0]
             best_f1 = [0]
             best_loss = [float("inf")] # 正式训练的总loss
+    print(f"best_acc:{best_acc[0]:.2f} best_f1:{best_f1[0]:.2f}")
 
-    f1 = F1_score(num_classes=data.num_classes) # y_pred y_true
+    f1 = utils.F1_score(num_classes=data.num_classes) # y_pred y_true
 
     optimizer = torch.optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
+    # 恢复训练需要显式设置initial_lr参数
+    if start_epoch >= 0:
+        for param_group in optimizer.param_groups:
+            param_group['initial_lr'] = args.lr 
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=20, last_epoch=start_epoch)
     train()

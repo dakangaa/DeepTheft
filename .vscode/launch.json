@@ -7,10 +7,11 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "args": [
-                "--layer_type", "conv2d",
+                // "--layer_type", "conv2d",
                 "--device", "laptop",  // "laptop" or "autodl"
                 "--H", "stride",
-                "-o", "1"
+                "-o", "1",
+                "--test_domain", "331"
             ]
         },
         {
@@ -30,6 +31,8 @@
                 // "--pretrain",
                 "--resume", 
                 "--device", "laptop", // "laptop" or "autodl"
+                "--total_epochs", "15",
+                "--test_domain", "331",                
                 "--workers", "1"
             ]
         },

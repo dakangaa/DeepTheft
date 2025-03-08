@@ -110,6 +110,18 @@ def save_step(epoch, acc, f1, loss):
         best_f1 = f1
         best_loss = loss
     else:
+        if args.pretrain:
+            path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + "pretrain" + '_ckpt.pth'
+        else:
+            # if args.use_domain:
+            #     path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + "train_usedomain" + '_ckpt.pth'
+            # else:
+            path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + "train" + '_ckpt.pth'
+        if not os.path.exists(args.path):
+            os.makedirs(args.path)
+        last_checkpoint = torch.load(path)
+        last_checkpoint["epoch"] = epoch + 1
+        torch.save(checkpoint, path)
         print("此次epoch, 模型性能没有提高")
 
 
@@ -129,12 +141,14 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='DeepTheft Training')
     parser.add_argument("--device", type=str, help="运行的机器")
     parser.add_argument('--batch_size', default=128, type=int, help='mini-batch size')
-    parser.add_argument('--epochs', default=10, type=int, help='number of total epochs to run')
+    parser.add_argument('--epochs', default=10, type=int, help='number of epochs to run')
+    parser.add_argument("--max_epochs", default=20, type=int, help="total num of epochs")
     parser.add_argument('--path', default='results/MateModel_Hyper', type=str, help='save_path')
     parser.add_argument('--workers', default=0, type=int, help='number of data loading workers')
     parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
     parser.add_argument("--layer_type", default="conv2d", type=str, help="layer_type which hyperParameter is belong to")
     parser.add_argument("--HyperParameter", "-H", default="kernel_size", type=str, help="训练的超参数")   # option: kernel_size, stride, out_channels
+    parser.add_argument("--test_domain", default="331", type=str, help="目标域")
     
     parser.add_argument("--pretrain", action="store_true", help="是否为预训练")
     parser.add_argument('--head', default='mlp', type=str, help='mlp or linear head')
@@ -146,7 +160,7 @@ if __name__ == '__main__':
     parser.add_argument("--temperature", default=0.1, type=float, help="温度系数tao")
     parser.add_argument('--proto_m', default= 0.95, type=float, help='weight of prototype update')
     args = parser.parse_args()
-    learning_rate = {"kernel_size":0.01, "stride":0.001, "out_channels":0.01}
+    learning_rate = {"kernel_size":0.005, "stride":0.001, "out_channels":0.001}
     args.lr = learning_rate[args.HyperParameter]
     if torch.cuda.is_available():
         device = torch.device('cuda')
@@ -154,7 +168,8 @@ if __name__ == '__main__':
     else:
         device = torch.device('cpu')
     # 设定源域
-    input_size = ["160", "192", "224", "299", "331"][0 : args.origin_domain_num]
+    input_size = ["160", "192", "224", "299", "331"]
+    input_size = [i for i in input_size if i != args.test_domain][0 : args.origin_domain_num] # TODO
 
     if args.resume:
         first_train = False #判断是否第一次正式训练
@@ -224,5 +239,5 @@ if __name__ == '__main__':
     if start_epoch >= 0:
         for param_group in optimizer.param_groups:
             param_group['initial_lr'] = args.lr 
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=20, last_epoch=start_epoch)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.max_epochs, last_epoch=start_epoch)
     train()

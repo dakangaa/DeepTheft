@@ -30,7 +30,6 @@ def eval(epoch, args, loader, prototypes):
 parser = argparse.ArgumentParser(description='Test on unknown input_size')
 parser.add_argument('--workers', default=0, type=int, help='number of data loading workers')
 parser.add_argument('--batch_size', default=1280, type=int, help='mini-batch size')
-parser.add_argument('--input_size', default="192", type=str, help='test input_size') # TEST domain
 parser.add_argument("--layer_type", default="conv2d", type=str, help="layer_type which hyperParameter is belong to")
 parser.add_argument("--HyperParameter", "-H", default="kernel_size", type=str, help="测试的超参数")   # option: kernel_size, stride, out_channels
 parser.add_argument("--origin_domain_num", "-o", default=1, type=int, help="训练的源域数量")
@@ -38,6 +37,7 @@ parser.add_argument("--use_domain", action="store_true", help="是否使用源�
 parser.add_argument('--head', default='mlp', type=str, help='mlp or linear head')
 parser.add_argument('--feat_dim', default = 128, type=int, help='feature dim')
 parser.add_argument("--device", type=str, default="laptop", help="laptop or autodl")
+parser.add_argument("--test_domain", default="331", type=str, help="目标域")
 
 args = parser.parse_args()
 args.pretrain = False
@@ -45,7 +45,7 @@ args.mode = "TEST"
 device = torch.device("cuda")
 
 print("Loading data...")
-data = dataset.RaplLoader(args, input_size = [args.input_size], no_val=True)
+data = dataset.RaplLoader(args, input_size = [args.test_domain], no_val=True)
 test_loader = data.get_loader()
 args.num_classes = data.num_classes
 

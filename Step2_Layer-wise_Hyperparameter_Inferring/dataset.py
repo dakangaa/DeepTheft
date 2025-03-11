@@ -1,5 +1,4 @@
 import torch
-import torch.nn.functional as F
 import torch.utils.data
 import numpy as np
 import torchvision.transforms as transforms
@@ -19,7 +18,6 @@ class Normalization(torch.nn.Module):
         input = (input - np.min(input, axis=0)) / _range
         return input
 
-
 class Resize(torch.nn.Module):
     def __init__(self, length):
         super().__init__()
@@ -27,17 +25,6 @@ class Resize(torch.nn.Module):
 
     def forward(self, inputs):
         out = [inputs[int(i * inputs.shape[0] / self.length)] for i in range(self.length)] # 通过子采样resize样本到指定大小
-        out = np.array(out).transpose([1, 0]) # 对x转置
-        return out
-
-class Crop(torch.nn.Module):
-    # 裁剪/填充处理
-    def __init__(self, length):
-        super().__init__()
-        self.length = length
-
-    def forward(self, inputs):
-        out = [inputs[i % inputs.shape[0]] for i in range(0, self.length)] 
         out = np.array(out).transpose([1, 0]) # 对x转置
         return out
 
@@ -144,18 +131,10 @@ class RaplLoader(object):
         self.no_val = no_val
         self.path = r"dataset/conv2d.h5" 
         self.seed = 0
-        # 数据预处理
-        use_crop = ["kernel_size", "stride", "out_channels"] 
-        if args.HyperParameter in use_crop:
-            self.transform = transforms.Compose([
-                Normalization(), # 归一化
-                Crop(1024), # 子采样缩放到1024长度
-            ])
-        else:
-            self.transform = transforms.Compose([
-                Normalization(), # 归一化
-                Resize(1024), # 子采样缩放到1024长度
-            ])
+        self.transform = transforms.Compose([
+            Normalization(), # 归一化
+            Resize(1024), # 子采样缩放到1024长度
+        ])
         # 对x处理的模块
         self.target_transform = transforms.Compose([
             ToTargets(args.HyperParameter, self.label, self.layer_type, indirect_regression),#对目标值进行缩放(K, S, C_o)
@@ -176,7 +155,6 @@ class RaplLoader(object):
             index_dict = [str(i) for i in index_dict_val[int(length * val_rate) : ]]
             index_dict_val = [str(i) for i in index_dict_val[0 : int(length * val_rate)]]
             return index_dict, index_dict_val
-
 
     def get_loader(self):
         # index_dict

@@ -5,7 +5,7 @@ import argparse
 from utils import F1_score, Timer
 
 # 对未知input_size测试
-def eval(epoch, args, loader, prototypes):
+def eval(epoch, args, loader):
     net.eval()
     timer = Timer()
     timer.start()
@@ -14,15 +14,13 @@ def eval(epoch, args, loader, prototypes):
         f1.reset()
         for batch_idx, (inputs, targets) in enumerate(loader):
             inputs, targets = inputs.to(device).float(), targets.to(device).long()
-            features = net(inputs)
-            feat_dot_prototypes = torch.matmul(features, prototypes.T)
-            pred = feat_dot_prototypes.max(1)[1]
+            pred = net(inputs)
             accuracy, p, r, F1 = f1(pred, targets)
             if (batch_idx+1)%100 == 0:
                 timer.stop()
                 print(f"[{batch_idx+1}/{len(loader)}] : {batch_idx*args.batch_size/timer.sum():.3f}samples/sec")
                 timer.start()
-            
+
     logs = '{} - TrainEpoch:[{}]\t Acc:{:.3f}\t P:{:.3f}\t R:{:.3f}\t F1:{:.3f}\t'
     print(logs.format(args.mode, epoch, accuracy, p, r, F1))
     return F1
@@ -51,12 +49,11 @@ test_loader = data.get_loader()
 args.num_classes = data.num_classes
 
 print("Loading Model...")
-check_point = torch.load(args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_train" + '_ckpt.pth') 
-prototypes = check_point["loss"]["disLoss.prototypes"]
-net = MateModel_Hyper.Model(args, input_channels=2)
+check_point = torch.load(args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + args.test_domain + "_" + "train" + '_ckpt.pth')
+net = MateModel_Hyper.Model(num_classes=data.num_classes).to(device)
 net.load_state_dict(check_point["net"])
 net.to(device)
 last_acc = check_point["acc"]
 train_epoch = check_point["epoch"]
 f1 = F1_score(num_classes=data.num_classes)
-eval(train_epoch, args, test_loader, prototypes)
+eval(train_epoch, args, test_loader)

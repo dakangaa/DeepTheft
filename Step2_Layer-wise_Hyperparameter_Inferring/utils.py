@@ -2,6 +2,7 @@ import numpy as np
 import time
 import torch.nn.functional as F
 import torch.nn as nn
+import torch
 
 class Timer:
     """Record multiple running times."""
@@ -30,6 +31,7 @@ class Timer:
         """Return the accumulated time."""
         return np.array(self.times).cumsum().tolist()
 
+
 class F1_score(nn.Module):
     def __init__(self, num_classes, epsilon=1e-7):
         super().__init__()
@@ -41,22 +43,22 @@ class F1_score(nn.Module):
         self.tp, self.tn, self.fp, self.fn = 0, 0, 0, 0
 
     def forward(self, y_pred, y_true):
-        assert y_pred.ndim == 1, "y为正确类别数据"
+        assert y_pred.ndim == 2
         assert y_true.ndim == 1
         y_true = F.one_hot(y_true, self.num_classes)
-        y_pred = F.one_hot(y_pred, self.num_classes)
+        y_pred = F.one_hot(torch.argmax(y_pred, dim=1), self.num_classes)
 
         self.tp += (y_true * y_pred).sum(0)
         self.tn += ((1 - y_true) * (1 - y_pred)).sum(0)
         self.fp += ((1 - y_true) * y_pred).sum(0)
         self.fn += (y_true * (1 - y_pred)).sum(0)
 
-        precision = self.tp / (self.tp + self.fp + self.epsilon) # 精确率：预测为正的样本中预测正确的比例
-        recall = self.tp / (self.tp + self.fn + self.epsilon)  # 召回率：实际为正的样本中预测正确的比例
+        precision = self.tp / (self.tp + self.fp + self.epsilon)
+        recall = self.tp / (self.tp + self.fn + self.epsilon)
 
         accuracy = self.tp.sum() / (self.tp.sum() + self.tn.sum() + self.fp.sum() + self.fn.sum())
-        accuracy = accuracy.item() * self.num_classes # 抵消分母的n倍样本量
+        accuracy = accuracy.item() * self.num_classes
 
         f1 = 2 * (precision * recall) / (precision + recall + self.epsilon)
-        f1 = f1.mean().item() 
+        f1 = f1.mean().item()
         return accuracy*100., precision.mean().item()*100., recall.mean().item()*100., f1*100.

@@ -10,8 +10,9 @@
                 // "--layer_type", "conv2d",
                 "--device", "laptop",  // "laptop" or "autodl"
                 "--H", "stride",
-                "-o", "1",
-                "--test_domain", "331"
+                "-o", "2",
+                "--test_domain", "331",
+                "--workers", "4"
             ]
         },
         {
@@ -28,12 +29,11 @@
             "args": [
                 "-H", "stride", // option: kernel_size, stride, out_channels
                 "-o", "2",
-                // "--pretrain",
-                // "--resume", 
+                // "--resume",
                 "--device", "laptop", // "laptop" or "autodl"
                 // "--max_epochs", "15",
-                "--test_domain", "160",                
-                "--workers", "1"
+                "--test_domain", "331",
+                "--workers", "5"
             ]
         },
         {
@@ -46,7 +46,7 @@
                 "85",
                 "--resume"
                 // "--workers", "3",
-                
+
             ]
         }
     ]

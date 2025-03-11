@@ -95,12 +95,12 @@ def save_step(epoch, acc, f1, loss):
             "loss_value": loss
         }    
         if args.pretrain:
-            path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + "pretrain" + '_ckpt.pth'
+            path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + args.test_domain + "_" + "pretrain" + '_ckpt.pth'
         else:
             # if args.use_domain:
             #     path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + "train_usedomain" + '_ckpt.pth'
             # else:
-            path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + "train" + '_ckpt.pth'
+            path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + args.test_domain + "_" + "train" + '_ckpt.pth'
         print("save path:" + path)
         
         if not os.path.exists(args.path):
@@ -111,17 +111,18 @@ def save_step(epoch, acc, f1, loss):
         best_loss = loss
     else:
         if args.pretrain:
-            path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + "pretrain" + '_ckpt.pth'
+            path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + args.test_domain + "_" + "pretrain" + '_ckpt.pth'
         else:
             # if args.use_domain:
             #     path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + "train_usedomain" + '_ckpt.pth'
             # else:
-            path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + "train" + '_ckpt.pth'
+            path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + args.test_domain + "_" + "train" + '_ckpt.pth'
+
         if not os.path.exists(args.path):
             os.makedirs(args.path)
         last_checkpoint = torch.load(path)
         last_checkpoint["epoch"] = epoch + 1
-        torch.save(checkpoint, path)
+        torch.save(last_checkpoint, path)
         print("此次epoch, 模型性能没有提高")
 
 
@@ -156,11 +157,11 @@ if __name__ == '__main__':
     parser.add_argument("--origin_domain_num", "-o", default=4, type=int, help="源域数量")
     parser.add_argument("--use_domain", action="store_true", help="是否使用源域信息") # Deprecated
     
-    parser.add_argument("--w", default=1, type=float, help="compLoss的权重")
+    parser.add_argument("-w", default=1, type=float, help="compLoss的权重")
     parser.add_argument("--temperature", default=0.1, type=float, help="温度系数tao")
     parser.add_argument('--proto_m', default= 0.95, type=float, help='weight of prototype update')
     args = parser.parse_args()
-    learning_rate = {"kernel_size":0.005, "stride":0.001, "out_channels":0.001}
+    learning_rate = {"kernel_size":0.001, "stride":0.001, "out_channels":0.001}
     args.lr = learning_rate[args.HyperParameter]
     if torch.cuda.is_available():
         device = torch.device('cuda')
@@ -175,7 +176,7 @@ if __name__ == '__main__':
         first_train = False #判断是否第一次正式训练
         if args.pretrain:
             # 重载预训练
-            path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + "pretrain" + '_ckpt.pth'
+            path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + args.test_domain + "_" + "pretrain" + '_ckpt.pth'
             checkpoint = torch.load(path)
             data = RaplLoader(args, no_val=False, input_size=input_size)
         else:
@@ -183,11 +184,11 @@ if __name__ == '__main__':
             # if args.use_domain:
             #     path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_train_usedomain" + '_ckpt.pth' 
             # else:
-            path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_train" + '_ckpt.pth' 
+            path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + args.test_domain + "_" + "train" + '_ckpt.pth'
             if not os.path.exists(path):
                 # 正式训练未进行，使用预训练参数
                 first_train = True # 第一次正式训练 加载预训练数据
-                path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_pretrain" + '_ckpt.pth'
+                path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + args.test_domain + "_pretrain" + '_ckpt.pth'
             checkpoint = torch.load(path)
             data = RaplLoader(args, no_val=False, input_size=input_size)
         print("load path:" + path)

@@ -124,6 +124,7 @@ class Rapl(torch.utils.data.Dataset):
         torch.manual_seed(int(time.time()))
         new_order = torch.randperm(len(self.index_dict))
         self.index_dict = [self.index_dict[new_order[i]] for i in range(len(self.index_dict))]
+        print("已重新打乱数据")
 
 class RaplLoader(object):
     def __init__(self, args, no_val=False, input_size=["224"], indirect_regression=False):
@@ -144,7 +145,7 @@ class RaplLoader(object):
         self.path = r"dataset/conv2d.h5" 
         self.seed = 0
         # 数据预处理
-        use_crop = ["kernel_size", "stride"] #TODO: 检验kernelsize
+        use_crop = ["kernel_size", "stride", "out_channels"] 
         if args.HyperParameter in use_crop:
             self.transform = transforms.Compose([
                 Normalization(), # 归一化
@@ -171,9 +172,9 @@ class RaplLoader(object):
             return [str(v) for v in range(begin, end)]
         else:
             torch.manual_seed(self.seed)
-            index_dict_val = (torch.randperm(end - begin) + begin).tolist()
-            index_dict = [str(i) for i in index_dict_val[begin + int(length * val_rate) : end]]
-            index_dict_val = [str(i) for i in index_dict_val[begin : begin + int(length * val_rate)]]
+            index_dict_val = (torch.randperm(length) + begin).tolist()
+            index_dict = [str(i) for i in index_dict_val[int(length * val_rate) : ]]
+            index_dict_val = [str(i) for i in index_dict_val[0 : int(length * val_rate)]]
             return index_dict, index_dict_val
 
 

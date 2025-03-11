@@ -28,6 +28,7 @@ def eval(epoch, args, loader, prototypes):
     return F1
 
 parser = argparse.ArgumentParser(description='Test on unknown input_size')
+parser.add_argument('--path', default='results/MateModel_Hyper', type=str, help='load_path')
 parser.add_argument('--workers', default=0, type=int, help='number of data loading workers')
 parser.add_argument('--batch_size', default=1280, type=int, help='mini-batch size')
 parser.add_argument("--layer_type", default="conv2d", type=str, help="layer_type which hyperParameter is belong to")
@@ -50,7 +51,7 @@ test_loader = data.get_loader()
 args.num_classes = data.num_classes
 
 print("Loading Model...")
-check_point = torch.load('results/MateModel_Hyper' + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_train" + '_ckpt.pth') 
+check_point = torch.load(args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_train" + '_ckpt.pth') 
 prototypes = check_point["loss"]["disLoss.prototypes"]
 net = MateModel_Hyper.Model(args, input_channels=2)
 net.load_state_dict(check_point["net"])

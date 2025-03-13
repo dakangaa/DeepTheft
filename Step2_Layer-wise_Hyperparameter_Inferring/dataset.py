@@ -37,7 +37,7 @@ class Crop(torch.nn.Module):
         self.length = length
 
     def forward(self, inputs):
-        out = [inputs[i % inputs.shape[0]] for i in range(0, self.length)] 
+        out = [inputs[i % inputs.shape[0]] for i in range(0, self.length)]
         out = np.array(out).transpose([1, 0]) # 对x转置
         return out
 
@@ -48,7 +48,7 @@ class ToTargets(torch.nn.Module):
         self.label = label
         self.layer_type = layer_type
         self.is_regression = regression
-        
+
     def forward(self, targets):
         # 每次只对一个target(层)调用
         # 其他超参数呢
@@ -63,7 +63,7 @@ class ToTargets(torch.nn.Module):
             targets = targets - 1
         if self.mode == 'out_channels':
             if self.is_regression:
-                if self.layer_type == "conv2d":    
+                if self.layer_type == "conv2d":
                     O_c = targets[0] * targets[2]**2 * targets[1] * targets[8]**2
                     targets = np.concatenate([targets[0:3], [targets[8]], [np.log2(O_c)]], dtype=np.float32)
                 if self.layer_type == "linear":
@@ -83,7 +83,7 @@ class Rapl(torch.utils.data.Dataset):
     """
     def __init__(self, file_path, index_dict, transform, target_transform):
         super().__init__()
-        self.index_dict = index_dict 
+        self.index_dict = index_dict
         self.bunch_size = 600 * 128
         self.begin = -1 # 当前bunch的位置
         self.end = -1
@@ -95,7 +95,7 @@ class Rapl(torch.utils.data.Dataset):
         self.transform = transform
         self.target_transform = target_transform
 
-    
+
     def _load_bunch(self, index):
         rapl_timer.start()
         self.begin = index // self.bunch_size * self.bunch_size
@@ -108,18 +108,18 @@ class Rapl(torch.utils.data.Dataset):
             self.bunch_data["trace"] = [dataset_trace[self.index_dict[i]][:, 1:3] for i in range(self.begin, self.end)]
             self.bunch_data["hp"] = [dataset_hp[self.index_dict[i]][:] for i in range(self.begin, self.end)]
         rapl_timer.stop()
-        
+
     def __getitem__(self, index):
         if index < self.begin or index >= self.end:
             self._load_bunch(index)
         trace = self.transform(self.bunch_data["trace"][index % self.bunch_size])
         hp = self.target_transform(self.bunch_data["hp"][index % self.bunch_size])
         return trace, hp
-        
+
 
     def __len__(self):
         return self.length
-    
+
     def shuffle(self):
         torch.manual_seed(int(time.time()))
         new_order = torch.randperm(len(self.index_dict))
@@ -142,10 +142,10 @@ class RaplLoader(object):
         self.is_test = no_val
         self.input_size = input_size # 样本的input_size
         self.no_val = no_val
-        self.path = r"dataset/conv2d.h5" 
+        self.path = r"dataset/conv2d.h5"
         self.seed = 0
         # 数据预处理
-        use_crop = ["kernel_size", "stride", "out_channels"] 
+        use_crop = ["kernel_size", "stride", "out_channels"]
         if args.HyperParameter in use_crop:
             self.transform = transforms.Compose([
                 Normalization(), # 归一化
@@ -162,7 +162,7 @@ class RaplLoader(object):
         ]) # 对y处理的模块
 
     def get_index_dict(self, input_size="224", no_val=False):
-        offset = [442344, 884688, 1327032, 1769376, 2211720] 
+        offset = [442344, 884688, 1327032, 1769376, 2211720]
         i = {"160":0, "192":1, "224":2, "299":3, "331":4}[input_size]
         begin = offset[i-1] if i-1 >= 0 else 0
         end = offset[i]
@@ -192,7 +192,7 @@ class RaplLoader(object):
         else:
             index_dict = []
             index_dict_val = []
-            
+
             for size in self.input_size:
                 _1, _2 = self.get_index_dict(input_size=size, no_val=self.no_val)
                 index_dict.extend(_1)
@@ -204,11 +204,10 @@ class RaplLoader(object):
             dataloader_val = torch.utils.data.DataLoader(
                 self.dataset_val, batch_size=self.batch_size, num_workers=self.num_workers, pin_memory=True)
             return dataloader, dataloader_val
-    
+
     def shuffle_dataset(self):
         # 打乱训练集数据
-        self.dataset.shuffle()    
-    
-                
+        self.dataset.shuffle()
 
-        
+
+

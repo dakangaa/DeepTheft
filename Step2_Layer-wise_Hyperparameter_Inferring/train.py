@@ -22,7 +22,7 @@ def train_step(epoch):
         else:
             assert len(data) == 2
             inputs, targets = data[0].to(device).float(), data[1].to(device).long()
-            domain = None 
+            domain = None
         optimizer.zero_grad()
         if args.pretrain:
             pred = net(inputs)
@@ -62,7 +62,7 @@ def eval_step(epoch, arg, loader):
         else:
             assert len(data) == 2
             inputs, targets = data[0].to(device).float(), data[1].to(device).long()
-            domain = None 
+            domain = None
         if args.pretrain:
             pred = net(inputs)
             loss = criterion(pred, targets)
@@ -89,11 +89,11 @@ def save_step(epoch, acc, f1, loss):
         state = {
             'net': net.state_dict(),
             'epoch': epoch+1,
-            "acc": acc, 
+            "acc": acc,
             "f1": f1,
             "loss": criterion.state_dict(),
             "loss_value": loss
-        }    
+        }
         if args.pretrain:
             path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + args.test_domain + "_" + "pretrain" + '_ckpt.pth'
         else:
@@ -102,7 +102,7 @@ def save_step(epoch, acc, f1, loss):
             # else:
             path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + args.test_domain + "_" + "train" + '_ckpt.pth'
         print("save path:" + path)
-        
+
         if not os.path.exists(args.path):
             os.makedirs(args.path)
         torch.save(state, path)
@@ -145,18 +145,18 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', default=10, type=int, help='number of epochs to run')
     parser.add_argument("--max_epochs", default=20, type=int, help="total num of epochs")
     parser.add_argument('--path', default='results/MateModel_Hyper', type=str, help='save_path')
-    parser.add_argument('--workers', default=0, type=int, help='number of data loading workers')
+    parser.add_argument('--workers', default=3, type=int, help='number of data loading workers')
     parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
     parser.add_argument("--layer_type", default="conv2d", type=str, help="layer_type which hyperParameter is belong to")
     parser.add_argument("--HyperParameter", "-H", default="kernel_size", type=str, help="训练的超参数")   # option: kernel_size, stride, out_channels
     parser.add_argument("--test_domain", default="331", type=str, help="目标域")
-    
+
     parser.add_argument("--pretrain", action="store_true", help="是否为预训练")
     parser.add_argument('--head', default='mlp', type=str, help='mlp or linear head')
     parser.add_argument('--feat_dim', default = 128, type=int, help='feature dim')
     parser.add_argument("--origin_domain_num", "-o", default=4, type=int, help="源域数量")
     parser.add_argument("--use_domain", action="store_true", help="是否使用源域信息") # Deprecated
-    
+
     parser.add_argument("-w", default=1, type=float, help="compLoss的权重")
     parser.add_argument("--temperature", default=0.1, type=float, help="温度系数tao")
     parser.add_argument('--proto_m', default= 0.95, type=float, help='weight of prototype update')
@@ -182,7 +182,7 @@ if __name__ == '__main__':
         else:
             # 重载正式训练
             # if args.use_domain:
-            #     path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_train_usedomain" + '_ckpt.pth' 
+            #     path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_train_usedomain" + '_ckpt.pth'
             # else:
             path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + args.test_domain + "_" + "train" + '_ckpt.pth'
             if not os.path.exists(path):
@@ -193,15 +193,15 @@ if __name__ == '__main__':
             data = RaplLoader(args, no_val=False, input_size=input_size)
         print("load path:" + path)
     else:
-        data = RaplLoader(args, no_val=False, input_size=input_size) 
+        data = RaplLoader(args, no_val=False, input_size=input_size)
     args.num_classes = data.num_classes
-        
+
     trainloader, valloader = data.get_loader()
     if args.pretrain:
-        net = MateModel_Hyper.Model(args=args).to(device) 
+        net = MateModel_Hyper.Model(args=args).to(device)
         criterion = nn.CrossEntropyLoss().to(device)
     else:
-        net = MateModel_Hyper.Model(args=args).to(device) 
+        net = MateModel_Hyper.Model(args=args).to(device)
         criterion = loss.Loss(args, net, valloader).to(device)
 
     # 模型重载
@@ -239,6 +239,6 @@ if __name__ == '__main__':
     # 恢复训练需要显式设置initial_lr参数
     if start_epoch >= 0:
         for param_group in optimizer.param_groups:
-            param_group['initial_lr'] = args.lr 
+            param_group['initial_lr'] = args.lr
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.max_epochs, last_epoch=start_epoch)
     train()

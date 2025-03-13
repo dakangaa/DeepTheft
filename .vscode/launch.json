@@ -11,7 +11,8 @@
                 "--device", "laptop",  // "laptop" or "autodl"
                 "--H", "stride",
                 "-o", "1",
-                "--test_domain", "331"
+                "--test_domain", "331",
+                "--workers", "5"
             ]
         },
         {
@@ -29,10 +30,10 @@
                 "-H", "stride", // option: kernel_size, stride, out_channels
                 "-o", "2",
                 // "--pretrain",
-                // "--resume", 
+                // "--resume",
                 "--device", "laptop", // "laptop" or "autodl"
                 // "--max_epochs", "15",
-                "--test_domain", "160",                
+                "--test_domain", "160",
                 "--workers", "1"
             ]
         },
@@ -46,7 +47,7 @@
                 "85",
                 "--resume"
                 // "--workers", "3",
-                
+
             ]
         }
     ]

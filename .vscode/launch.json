@@ -9,10 +9,7 @@
             "args": [
                 // "--layer_type", "conv2d",
                 "--device", "laptop",  // "laptop" or "autodl"
-                "--H", "stride",
-                "-o", "1",
-                "--test_domain", "331",
-                "--workers", "5"
+                "--mode", "T"
             ]
         },
         {

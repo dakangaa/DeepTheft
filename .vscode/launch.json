@@ -17,6 +17,10 @@
             "type": "debugpy",
             "request": "launch",
             "program": "${file}",
+            "args": [
+                "--device", "laptop",  // "laptop" or "autodl"
+                "--mode", "O"
+            ]
         },
         {
             "name": "Python: Step 2",

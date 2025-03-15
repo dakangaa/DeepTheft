@@ -22,7 +22,7 @@ def eval(epoch, args, loader, prototypes):
                 timer.stop()
                 print(f"[{batch_idx+1}/{len(loader)}] : {batch_idx*args.batch_size/timer.sum():.3f}samples/sec")
                 timer.start()
-            
+
     logs = '{} - TrainEpoch:[{}]\t Acc:{:.3f}\t P:{:.3f}\t R:{:.3f}\t F1:{:.3f}\t'
     print(logs.format(args.mode, epoch, accuracy, p, r, F1))
     return F1
@@ -51,7 +51,9 @@ test_loader = data.get_loader()
 args.num_classes = data.num_classes
 
 print("Loading Model...")
-check_point = torch.load(args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_train" + '_ckpt.pth') 
+path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + args.test_domain + "_" + "train" + '_ckpt.pth'
+print(f"load path : {path}")
+check_point = torch.load(path)
 prototypes = check_point["loss"]["disLoss.prototypes"]
 net = MateModel_Hyper.Model(args, input_channels=2)
 net.load_state_dict(check_point["net"])

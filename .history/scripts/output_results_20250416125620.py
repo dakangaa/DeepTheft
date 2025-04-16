@@ -22,7 +22,7 @@ def test(HyperParameters, origin_domain_nums, test_domain, args):
             [HyperParameters, test_domain],
             names=["HyperParameters", "test_domain"]
         )
-        const_var = origin_domain_nums[0]
+        const_var = Origin_domain_nums[0]
 
     columns = ["VAL_ACC", "VAL_F1", "TEST_ACC", "TEST_F1", "TEST_R", "TEST_P"]
     df = pd.DataFrame(np.zeros((len(HyperParameters) * len(var2), 6)), index=indexes, columns=columns)
@@ -112,25 +112,25 @@ if __name__ == "__main__":
     #     df_td.to_excel(writer, sheet_name="T")
 
     # test
-    parser = argparse.ArgumentParser(description='collect data')
-    parser.add_argument("--device", type=str, default="autodl", help="laptop or autodl")
-    parser.add_argument("--mode", type=str, default="O", help="T est_domain or O rigin_domain_nums")
-    args = parser.parse_args()
+    # parser = argparse.ArgumentParser(description='collect data')
+    # parser.add_argument("--device", type=str, default="autodl", help="laptop or autodl")
+    # parser.add_argument("--mode", type=str, default="O", help="T est_domain or O rigin_domain_nums")
+    # args = parser.parse_args()
 
-    HyperParameters = ["kernel_size", "out_channels", "stride"]
-    if args.mode == "O":
-        origin_domain_nums = [1,2,3,4]
-        test_domain = ["331"]
-        df = test(HyperParameters, origin_domain_nums, test_domain, args)
-        print(df)
-        with pd.ExcelWriter("results/results.xlsx", if_sheet_exists="replace", mode="a") as writer:
-            df.to_excel(writer, sheet_name="origin_domain_num")
-    elif args.mode == "T":
-        origin_domain_nums = [4]
-        test_domain = ["160", "192", "224", "299", "331"]
-        df = test(HyperParameters, origin_domain_nums, test_domain, args)
-        print(df)
-        with pd.ExcelWriter("results/results.xlsx", if_sheet_exists="replace", mode="a") as writer:
-            df.to_excel(writer, sheet_name="test_domain")
-    else:
-        raise ValueError
+    # HyperParameters = ["kernel_size", "out_channels", "stride"]
+    # if args.mode == "O":
+    #     origin_domain_nums = [1,2,3,4]
+    #     test_domain = ["331"]
+    #     df = test(HyperParameters, origin_domain_nums, test_domain, args)
+    #     print(df)
+    #     with pd.ExcelWriter("results/results.xlsx", if_sheet_exists="replace", mode="a") as writer:
+    #         df.to_excel(writer, sheet_name="origin_domain_num")
+    # elif args.mode == "T":
+    #     origin_domain_nums = [4]
+    #     test_domain = ["160", "192", "224", "299", "331"]
+    #     df = test(HyperParameters, origin_domain_nums, test_domain, args)
+    #     print(df)
+    #     with pd.ExcelWriter("results/results.xlsx", if_sheet_exists="replace", mode="a") as writer:
+    #         df.to_excel(writer, sheet_name="test_domain")
+    # else:
+    #     raise ValueError

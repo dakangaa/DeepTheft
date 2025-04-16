@@ -22,7 +22,7 @@ def test(HyperParameters, origin_domain_nums, test_domain, args):
             [HyperParameters, test_domain],
             names=["HyperParameters", "test_domain"]
         )
-        const_var = origin_domain_nums[0]
+        const_var = Origin_domain_nums[0]
 
     columns = ["VAL_ACC", "VAL_F1", "TEST_ACC", "TEST_F1", "TEST_R", "TEST_P"]
     df = pd.DataFrame(np.zeros((len(HyperParameters) * len(var2), 6)), index=indexes, columns=columns)

@@ -25,7 +25,7 @@ def train_step(epoch):
         optimizer.step()
 
         metrics_sum[0] += loss.item()
-        metrics_sum[1:] += f1(outputs, targets)#accuracy, p, r, F1
+        metrics_sum[1:] += f1(pred, targets)#accuracy, p, r, F1
 
         timer.stop()
         if (batch_idx+1) % 100 == 0:

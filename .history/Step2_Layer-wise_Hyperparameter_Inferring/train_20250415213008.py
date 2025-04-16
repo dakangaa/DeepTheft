@@ -7,75 +7,75 @@ from dataset import RaplLoader, rapl_timer
 import loss
 import utils
 import torch.nn as nn
-import numpy as np
 
 def train_step(epoch):
     net.train()
 
     timer = utils.Timer()
     timer.start()
-    metrics_sum = np.zeros(5) # train_loss, accuracy, p, r, F1
+    train_loss, accuracy, F1, loss1, loss2 = 0, 0, 0, 0, 0
     f1.reset()
     for batch_idx, data in enumerate(trainloader):
-        # if args.use_domain:
-        #     assert len(data) == 3
-        #     inputs, targets, domain = data[0].to(device).float(), data[1].to(device).long(), data[2].to(device).long()
-        # else:
-        assert len(data) == 2
-        inputs, targets = data[0].to(device).float(), data[1].to(device).long()
-        domain = None
+        if args.use_domain:
+            assert len(data) == 3
+            inputs, targets, domain = data[0].to(device).float(), data[1].to(device).long(), data[2].to(device).long()
+        else:
+            assert len(data) == 2
+            inputs, targets = data[0].to(device).float(), data[1].to(device).long()
+            domain = None
         optimizer.zero_grad()
-        if args.regression:
-            features = net(inputs)
-            loss, pred = criterion(features, targets)
+        if args.pretrain:
+            pred = net(inputs)
+            loss = criterion(pred, targets)
+            pred = torch.argmax(pred, dim=1)
         else:
             loss, pred, loss_dis, loss_comp = criterion(net, inputs, targets, domain)
         loss.backward()
         optimizer.step()
 
-        metrics_sum[0] += loss.item()
-        metrics_sum[1:] += f1(pred, targets)#accuracy, p, r, F1
+        train_loss += loss.item()
+        loss1 += loss_dis.item()
+        loss2 += loss_comp.item()
+        accuracy, p, r, F1 = f1(pred, targets)
 
         timer.stop()
         if (batch_idx+1) % 100 == 0:
-            logs = '{} - Epoch:[{}][{}/{}]\tLoss:{:.3f}\tAcc:{:.3f}\tP:{:.3f}\tR:{:.3f}\tF1:{:.3f}\t{:.3f}samples/sec'
-            print(logs.format('TRAIN', epoch, (batch_idx+1), len(trainloader), metrics_sum[0] / (batch_idx + 1),
-                              metrics_sum[1] / (batch_idx + 1), metrics_sum[2] / (batch_idx + 1), metrics_sum[3] / (batch_idx + 1), metrics_sum[4] / (batch_idx + 1),
-                                (batch_idx+1) * args.batch_size / timer.sum()))
+            logs = '{} - Epoch:[{}][{}/{}]\tLoss:{:.3f}\tLoss_Dis:{:.3f}\tLoss_Comp:{:.3f}\tAcc:{:.3f}\tP:{:.3f}\tR:{:.3f}\tF1:{:.3f}\t{:.3f}samples/sec'
+            print(logs.format('TRAIN', epoch, (batch_idx+1), len(trainloader), train_loss / (batch_idx + 1), loss1 / (batch_idx + 1), loss2 / (batch_idx + 1),
+                              accuracy, p, r, F1, (batch_idx+1) * args.batch_size / timer.sum()))
             print(f"loading bunch use time {rapl_timer.sum() / timer.sum() * 100:.2f}%")
             print("\n")
             timer.start()
-    return metrics_sum[0] / len(trainloader), metrics_sum[4] / len(trainloader)
+    return train_loss / len(trainloader), F1
 
 
 @torch.no_grad()
 def eval_step(epoch, arg, loader):
     net.eval()
 
-    metrics_sum = np.zeros(5) # train_loss, accuracy, p, r, F1
+    eval_loss, accuracy, F1 = 0, 0, 0
     f1.reset()
     for batch_idx, data in enumerate(loader):
-        # if args.use_domain:
-        #     assert len(data) == 3
-        #     inputs, targets, domain = data[0].to(device).float(), data[1].to(device).long(), data[2].to(device).long()
-        # else:
-        assert len(data) == 2
-        inputs, targets = data[0].to(device).float(), data[1].to(device).long()
-        domain = None
-        if args.regression:
-            features = net(inputs)
-            loss, pred = criterion(features, targets)
+        if args.use_domain:
+            assert len(data) == 3
+            inputs, targets, domain = data[0].to(device).float(), data[1].to(device).long(), data[2].to(device).long()
+        else:
+            assert len(data) == 2
+            inputs, targets = data[0].to(device).float(), data[1].to(device).long()
+            domain = None
+        if args.pretrain:
+            pred = net(inputs)
+            loss = criterion(pred, targets)
+            pred = torch.argmax(pred, dim=1)
         else:
             loss, pred, _, _ = criterion(net, inputs, targets, domain)
 
-        metrics_sum[0] += loss.item()
-        metrics_sum[1:] += f1(pred, targets)#accuracy, p, r, F1
+        eval_loss += loss.item()
+        accuracy, p, r, F1 = f1(pred, targets)
 
-    eval_loss_sum, accuracy_sum, p_sum, r_sum, F1_sum = metrics_sum[:]
     logs = '{} - Epoch: [{}]\t Loss: {:.3f}\t Acc: {:.3f}\t P: {:.3f}\t R: {:.3f}\t F1: {:.3f}\t'
-    print(logs.format(arg, epoch, eval_loss_sum / len(loader), accuracy_sum / len(loader),
-                      p_sum / len(loader), r_sum / len(loader), F1_sum / len(loader)))
-    return eval_loss_sum / len(loader), accuracy_sum / len(loader), F1_sum / len(loader)
+    print(logs.format(arg, epoch, eval_loss / len(loader), accuracy, p, r, F1))
+    return eval_loss / len(loader), accuracy, F1
 
 
 def save_step(epoch, acc, f1, loss):
@@ -94,8 +94,8 @@ def save_step(epoch, acc, f1, loss):
             "loss": criterion.state_dict(),
             "loss_value": loss
         }
-        if args.regression:
-            path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + args.test_domain + "_" + "regression" + '_ckpt.pth'
+        if args.pretrain:
+            path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + args.test_domain + "_" + "pretrain" + '_ckpt.pth'
         else:
             # if args.use_domain:
             #     path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + "train_usedomain" + '_ckpt.pth'
@@ -110,8 +110,8 @@ def save_step(epoch, acc, f1, loss):
         best_f1 = f1
         best_loss = loss
     else:
-        if args.regression:
-            path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + args.test_domain + "_" + "regression" + '_ckpt.pth'
+        if args.pretrain:
+            path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + args.test_domain + "_" + "pretrain" + '_ckpt.pth'
         else:
             # if args.use_domain:
             #     path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + "train_usedomain" + '_ckpt.pth'
@@ -156,7 +156,6 @@ if __name__ == '__main__':
     parser.add_argument('--feat_dim', default = 128, type=int, help='feature dim')
     parser.add_argument("--origin_domain_num", "-o", default=4, type=int, help="源域数量")
     parser.add_argument("--use_domain", action="store_true", help="是否使用源域信息") # Deprecated
-    parser.add_argument('--regression', action="store_true", help="是否为回归任务")
 
     parser.add_argument("-w", default=1, type=float, help="compLoss的权重")
     parser.add_argument("--temperature", default=0.1, type=float, help="温度系数tao")
@@ -174,9 +173,10 @@ if __name__ == '__main__':
     input_size = [i for i in input_size if i != args.test_domain][0 : args.origin_domain_num] # TODO
 
     if args.resume:
-        if args.regression:
+        first_train = False #判断是否第一次正式训练
+        if args.pretrain:
             # 重载预训练
-            path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + args.test_domain + "_" + "regression" + '_ckpt.pth'
+            path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + args.test_domain + "_" + "pretrain" + '_ckpt.pth'
             checkpoint = torch.load(path)
             data = RaplLoader(args, no_val=False, input_size=input_size)
         else:
@@ -185,6 +185,10 @@ if __name__ == '__main__':
             #     path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_train_usedomain" + '_ckpt.pth'
             # else:
             path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + args.test_domain + "_" + "train" + '_ckpt.pth'
+            if not os.path.exists(path):
+                # 正式训练未进行，使用预训练参数
+                first_train = True # 第一次正式训练 加载预训练数据
+                path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + args.test_domain + "_pretrain" + '_ckpt.pth'
             checkpoint = torch.load(path)
             data = RaplLoader(args, no_val=False, input_size=input_size)
         print("load path:" + path)
@@ -193,10 +197,11 @@ if __name__ == '__main__':
     args.num_classes = data.num_classes
 
     trainloader, valloader = data.get_loader()
-    net = MateModel_Hyper.Model(args=args).to(device)
-    if args.regression:
-        criterion = loss.RegressionLoss(args).to(device)
+    if args.pretrain:
+        net = MateModel_Hyper.Model(args=args).to(device)
+        criterion = nn.CrossEntropyLoss().to(device)
     else:
+        net = MateModel_Hyper.Model(args=args).to(device)
         criterion = loss.Loss(args, net, valloader).to(device)
 
     # 模型重载
@@ -206,7 +211,7 @@ if __name__ == '__main__':
         best_acc = checkpoint['acc']
         start_epoch = checkpoint['epoch']
         best_f1 = checkpoint["f1"]
-        if not args.resume:
+        if first_train:
             # 第一次正式训练
             best_acc = [0]
             best_f1 = [0]

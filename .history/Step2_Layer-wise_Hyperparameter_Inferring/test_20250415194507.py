@@ -12,7 +12,7 @@ def eval(epoch, args, loader, prototypes):
     timer.start()
     with torch.no_grad():
         # accuracy, p, r, F1 = 0, 0, 0, 0
-        metrics_sum = np.zeros(4)
+        metrics = np.zeros(4)
         f1.reset()
         if args.regression:
             for batch_idx, (inputs, targets) in enumerate(loader):
@@ -26,7 +26,7 @@ def eval(epoch, args, loader, prototypes):
                     timer.stop()
                     print(f"[{batch_idx+1}/{len(loader)}] : {batch_idx*args.batch_size/timer.sum():.3f}samples/sec")
                     timer.start()
-                metrics_sum += np.array(f1(pred, targets))
+                metrics += np.array(f1(pred, targets))
 
         else:
             for batch_idx, (inputs, targets) in enumerate(loader):
@@ -38,11 +38,11 @@ def eval(epoch, args, loader, prototypes):
                     timer.stop()
                     print(f"[{batch_idx+1}/{len(loader)}] : {batch_idx*args.batch_size/timer.sum():.3f}samples/sec")
                     timer.start()
-                metrics_sum += np.array(f1(pred, targets))
+                metrics += np.array(f1(pred, targets))
 
     logs = '{} - TrainEpoch:[{}]\t Acc:{:.3f}\t P:{:.3f}\t R:{:.3f}\t F1:{:.3f}\t'
-    print(logs.format(args.mode, epoch, metrics_sum[0]/len(loader), metrics_sum[1]/len(loader), metrics_sum[2]/len(loader), metrics_sum[3]/len(loader)))
-    return metrics_sum[3]/len(loader)
+    print(logs.format(args.mode, epoch, metrics[0]/len(loader), metrics[1]/len(loader), metrics[2]/len(loader), metrics[3]/len(loader)))
+    return metrics[3]
 
 parser = argparse.ArgumentParser(description='Test on unknown input_size')
 parser.add_argument('--path', default='results/MateModel_Hyper', type=str, help='load_path')

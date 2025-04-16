@@ -64,13 +64,11 @@ class FinalBlock(nn.Module):
                 nn.Linear(in_channels, args.feat_dim)
             )
 
-        self.pretrain = args.pretrain
-
     def forward(self, x):
-        if self.pretrain:
-            out = self.classifier(x)
-        else:
-            out = self.head(x)
+        # if self.pretrain:
+        #     out = self.classifier(x)
+        # else:
+        out = self.head(x)
 
         return out
 
@@ -87,7 +85,6 @@ class Model(nn.Module):
         self.down_conv4 = DownBlock(filter[2], filter[3])
 
         self.final = FinalBlock(filter[3], args)
-        self.pretrain = args.pretrain
 
     def forward(self, x):
         _, down_x1 = self.down_conv1(x)
@@ -96,7 +93,6 @@ class Model(nn.Module):
         _, down_x4 = self.down_conv4(down_x3)
 
         out = self.final(down_x4)
-        if not self.pretrain:
-            out = F.normalize(out, dim=1)
+        out = F.normalize(out, dim=1)
         return out
 

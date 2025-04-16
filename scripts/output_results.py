@@ -40,6 +40,9 @@ def test(HyperParameters, Origin_domain_nums, test_domain, args):
                 file = path + "/" + hp + "_" + str(const_var) + "_" + v + "_train_ckpt.pth"
                 test_cmd = ["python", "Step2_Layer-wise_Hyperparameter_Inferring/test.py",
                             "-H", hp, "-o", str(const_var), "--device", args.device, "--test_domain", v, "--workers", "3"]
+            if args.regression and hp == "out_channels":
+                test_cmd.append("--regression")
+                file.replace("train", "regression")
             test_result = subprocess.run(test_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
             print(test_result.stdout)
             for line in test_result.stdout.split("\n"):
@@ -58,7 +61,7 @@ def test(HyperParameters, Origin_domain_nums, test_domain, args):
     return df
 
 
-def read_ckpt(hyperParameters, origin_domain_nums, test_domain, columns):
+def read_ckpt(hyperParameters, origin_domain_nums, test_domain, columns, is_regression=False):
     path = "results/MateModel_Hyper"
 
     indexes = pd.MultiIndex.from_product(
@@ -75,7 +78,10 @@ def read_ckpt(hyperParameters, origin_domain_nums, test_domain, columns):
         for od in origin_domain_nums:
             log = "HyperParameter:{}\t Origin_domain_nums:{}\t \nloading checkpoint..."
             print(log.format(hp, od))
-            file = path + '/' + hp + "_" + str(od) + "_" + "331" + "_" + "train" + '_ckpt.pth'
+            if is_regression and hp == "out_channels":
+                file = path + '/' + hp + "_" + str(od) + "_" + "331" + "_" + "regression" + '_ckpt.pth'
+            else:
+                file = path + '/' + hp + "_" + str(od) + "_" + "331" + "_" + "train" + '_ckpt.pth'
             checkpoint = torch.load(file, map_location=torch.device('cpu'))
             for col in columns:
                 if col not in checkpoint.keys():
@@ -86,7 +92,10 @@ def read_ckpt(hyperParameters, origin_domain_nums, test_domain, columns):
                 else:
                     df_od.loc[(hp, od), col] = checkpoint[col]
         for td in test_domain:
-            file = path + '/' + hp + "_" + str(4) + "_" + td + "_" + "train" + '_ckpt.pth'
+            if is_regression and hp == "out_channels":
+                file = path + '/' + hp + "_" + str(4) + "_" + td + "_" + "regression" + '_ckpt.pth'
+            else:
+                file = path + '/' + hp + "_" + str(4) + "_" + td + "_" + "train" + '_ckpt.pth'
             checkpoint = torch.load(file, map_location=torch.device('cpu'))
             for col in columns:
                 if col not in checkpoint.keys():
@@ -116,6 +125,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='collect data')
     parser.add_argument("--device", type=str, default="autodl", help="laptop or autodl")
     parser.add_argument("--mode", type=str, default="O", help="T est_domain or O rigin_domain_nums")
+    parser.add_argument("--regression", action="store_true", help="out_channels预测是否为回归任务")
     args = parser.parse_args()
 
     HyperParameters = ["kernel_size", "out_channels", "stride"]
@@ -125,13 +135,19 @@ if __name__ == "__main__":
         df = test(HyperParameters, origin_domain_nums, test_domain, args)
         print(df)
         with pd.ExcelWriter("results/results.xlsx", if_sheet_exists="replace", mode="a") as writer:
-            df.to_excel(writer, sheet_name="origin_domain_num")
+            if args.regression:
+                df.to_excel(writer, sheet_name="origin_domain_num_regression")
+            else:
+                df.to_excel(writer, sheet_name="origin_domain_num")
     elif args.mode == "T":
         origin_domain_nums = [4]
         test_domain = ["160", "192", "224", "299", "331"]
         df = test(HyperParameters, origin_domain_nums, test_domain, args)
         print(df)
         with pd.ExcelWriter("results/results.xlsx", if_sheet_exists="replace", mode="a") as writer:
-            df.to_excel(writer, sheet_name="test_domain")
+            if args.regression:
+                df.to_excel(writer, sheet_name="test_domain_regression")
+            else:
+                df.to_excel(writer, sheet_name="test_domain")
     else:
         raise ValueError

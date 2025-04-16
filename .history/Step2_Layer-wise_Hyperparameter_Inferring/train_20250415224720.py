@@ -14,7 +14,7 @@ def train_step(epoch):
 
     timer = utils.Timer()
     timer.start()
-    metrics_sum = np.zeros(5) # train_loss, accuracy, p, r, F1
+    metrics = np.zeros(5) # train_loss, accuracy, p, r, F1
     f1.reset()
     for batch_idx, data in enumerate(trainloader):
         # if args.use_domain:
@@ -33,26 +33,26 @@ def train_step(epoch):
         loss.backward()
         optimizer.step()
 
-        metrics_sum[0] += loss.item()
-        metrics_sum[1:] += f1(pred, targets)#accuracy, p, r, F1
+        metrics[0] += loss.item()
+        metrics[1:] += f1(pred, targets)#accuracy, p, r, F1
 
         timer.stop()
         if (batch_idx+1) % 100 == 0:
             logs = '{} - Epoch:[{}][{}/{}]\tLoss:{:.3f}\tAcc:{:.3f}\tP:{:.3f}\tR:{:.3f}\tF1:{:.3f}\t{:.3f}samples/sec'
-            print(logs.format('TRAIN', epoch, (batch_idx+1), len(trainloader), metrics_sum[0] / (batch_idx + 1),
-                              metrics_sum[1] / (batch_idx + 1), metrics_sum[2] / (batch_idx + 1), metrics_sum[3] / (batch_idx + 1), metrics_sum[4] / (batch_idx + 1),
+            print(logs.format('TRAIN', epoch, (batch_idx+1), len(trainloader), metrics[0] / (batch_idx + 1),
+                              metrics[1] / (batch_idx + 1), metrics[2] / (batch_idx + 1), metrics[3] / (batch_idx + 1), metrics[4] / (batch_idx + 1),
                                 (batch_idx+1) * args.batch_size / timer.sum()))
             print(f"loading bunch use time {rapl_timer.sum() / timer.sum() * 100:.2f}%")
             print("\n")
             timer.start()
-    return metrics_sum[0] / len(trainloader), metrics_sum[4] / len(trainloader)
+    return metrics[0] / len(trainloader), metrics[4] / len(trainloader)
 
 
 @torch.no_grad()
 def eval_step(epoch, arg, loader):
     net.eval()
 
-    metrics_sum = np.zeros(5) # train_loss, accuracy, p, r, F1
+    metrics = np.zeros(5) # train_loss, accuracy, p, r, F1
     f1.reset()
     for batch_idx, data in enumerate(loader):
         # if args.use_domain:
@@ -68,14 +68,13 @@ def eval_step(epoch, arg, loader):
         else:
             loss, pred, _, _ = criterion(net, inputs, targets, domain)
 
-        metrics_sum[0] += loss.item()
-        metrics_sum[1:] += f1(pred, targets)#accuracy, p, r, F1
+        metrics[0] += loss.item()
+        metrics[1:] += f1(pred, targets)#accuracy, p, r, F1
 
-    eval_loss_sum, accuracy_sum, p_sum, r_sum, F1_sum = metrics_sum[:]
+    eval_loss, accuracy, p, r, F1 = metrics[:]
     logs = '{} - Epoch: [{}]\t Loss: {:.3f}\t Acc: {:.3f}\t P: {:.3f}\t R: {:.3f}\t F1: {:.3f}\t'
-    print(logs.format(arg, epoch, eval_loss_sum / len(loader), accuracy_sum / len(loader),
-                      p_sum / len(loader), r_sum / len(loader), F1_sum / len(loader)))
-    return eval_loss_sum / len(loader), accuracy_sum / len(loader), F1_sum / len(loader)
+    print(logs.format(arg, epoch, eval_loss / len(loader), accuracy, p, r, F1))
+    return eval_loss / len(loader), accuracy, F1
 
 
 def save_step(epoch, acc, f1, loss):

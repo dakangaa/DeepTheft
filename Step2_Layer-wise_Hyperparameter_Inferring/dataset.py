@@ -45,13 +45,12 @@ class ToTargets(torch.nn.Module):
     def __init__(self, mode, label, layer_type, regression=False):
         super().__init__()
         self.mode = mode
-        self.label = label
+        self.label = label #目标超参数对应的列号
         self.layer_type = layer_type
         self.is_regression = regression
 
     def forward(self, targets):
-        # 每次只对一个target(层)调用
-        # 其他超参数呢
+        # targets：一层的所有超参数
         if self.mode == 'kernel_size':
             # {1, 3, 5, 7} --> {0, 1, 2, 2?}
             targets = targets[self.label]
@@ -64,13 +63,18 @@ class ToTargets(torch.nn.Module):
         if self.mode == 'out_channels':
             if self.is_regression:
                 if self.layer_type == "conv2d":
-                    O_c = targets[0] * targets[2]**2 * targets[1] * targets[8]**2
-                    targets = np.concatenate([targets[0:3], [targets[8]], [np.log2(O_c)]], dtype=np.float32)
+                    # O_c = targets[0] * targets[2]**2 * targets[1] * targets[8]**2
+                    # targets = np.concatenate([targets[0:3], [targets[8]], [np.log2(O_c)]], dtype=np.float32)
+                    # 缩放到 [-1 ~ 1]
+                    targets = targets[self.label]
+                    lower = 6
+                    upper = 11 #TODO:缩放
+                    targets = np.log2(targets) - lower # {0,1,2,3,4,5}
                 if self.layer_type == "linear":
                     O_l = targets[0] * targets[1]
                     targets = np.concatenate([targets[0:2], [np.log2(O_l)]], dtype=np.float32)
             else :
-                # {2^4, 2^5, 2^6,...} --> {-2, -1, 0, ...}
+                # {2^6, 2^7, 2^8...} --> {0, 1 ,2 ...}
                 targets = targets[self.label]
                 targets = np.log2(targets) - 6
         return targets
@@ -127,7 +131,7 @@ class Rapl(torch.utils.data.Dataset):
         print("已重新打乱数据")
 
 class RaplLoader(object):
-    def __init__(self, args, no_val=False, input_size=["224"], indirect_regression=False):
+    def __init__(self, args, no_val=False, input_size=["224"]):
         self.device = args.device
         self.label = {'in_channels': 0, 'out_channels': 1, 'kernel_size': 2,
                       'stride': 3, 'padding': 4, 'dilation': 5,
@@ -135,10 +139,7 @@ class RaplLoader(object):
         self.layer_type = args.layer_type
         self.batch_size = args.batch_size
         self.num_workers = args.workers
-        if indirect_regression:
-            self.num_classes = {'out_channels': 1, 'kernel_size': 3, 'stride': 2}[args.HyperParameter]
-        else:
-            self.num_classes = {'out_channels': 6, 'kernel_size': 3, 'stride': 2}[args.HyperParameter]
+        self.num_classes = {'out_channels': 6, 'kernel_size': 3, 'stride': 2}[args.HyperParameter]
         self.is_test = no_val
         self.input_size = input_size # 样本的input_size
         self.no_val = no_val
@@ -158,7 +159,7 @@ class RaplLoader(object):
             ])
         # 对x处理的模块
         self.target_transform = transforms.Compose([
-            ToTargets(args.HyperParameter, self.label, self.layer_type, indirect_regression),#对目标值进行缩放(K, S, C_o)
+            ToTargets(args.HyperParameter, self.label, self.layer_type, args.regression),#对目标值进行缩放(K, S, C_o)
         ]) # 对y处理的模块
 
     def get_index_dict(self, input_size="224", no_val=False):

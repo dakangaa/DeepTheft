@@ -41,7 +41,7 @@ class F1_score(nn.Module):
         self.tp, self.tn, self.fp, self.fn = 0, 0, 0, 0
 
     def forward(self, y_pred, y_true):
-        assert y_pred.ndim == 1, "y为正确类别数据"
+        assert y_pred.ndim == 1, "y为正确类别label"
         assert y_true.ndim == 1
         y_true = F.one_hot(y_true, self.num_classes)
         y_pred = F.one_hot(y_pred, self.num_classes)
@@ -58,5 +58,5 @@ class F1_score(nn.Module):
         accuracy = accuracy.item() * self.num_classes # 抵消分母的n倍样本量
 
         f1 = 2 * (precision * recall) / (precision + recall + self.epsilon)
-        f1 = f1.mean().item() 
+        f1 = f1.mean().item()
         return accuracy*100., precision.mean().item()*100., recall.mean().item()*100., f1*100.

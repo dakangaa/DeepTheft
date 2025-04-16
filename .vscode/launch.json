@@ -28,14 +28,15 @@
             "request": "launch",
             "program": "${file}",
             "args": [
-                "-H", "stride", // option: kernel_size, stride, out_channels
-                "-o", "2",
-                // "--pretrain",
+                "-H", "out_channels", // option: kernel_size, stride, out_channels
+                "-o", "1",
                 // "--resume",
                 "--device", "laptop", // "laptop" or "autodl"
-                // "--max_epochs", "15",
-                "--test_domain", "160",
-                "--workers", "1"
+                "--test_domain", "331",
+                "--workers", "3",
+                "--epochs", "20",
+                "--max_epochs", "20",
+                "--regression"
             ]
         },
         {

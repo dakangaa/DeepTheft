@@ -18,8 +18,7 @@
             "request": "launch",
             "program": "${file}",
             "args": [
-                "--device", "laptop",  // "laptop" or "autodl"
-                "--mode", "O"
+                "--layer_type", "linear"
             ]
         },
         {

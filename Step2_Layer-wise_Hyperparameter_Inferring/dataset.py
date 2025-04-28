@@ -163,7 +163,10 @@ class RaplLoader(object):
         ]) # 对y处理的模块
 
     def get_index_dict(self, input_size="224", no_val=False):
-        offset = [442344, 884688, 1327032, 1769376, 2211720]
+        layer_type_index = {"conv2d":0, "max_pool2d":1, "linear":2}
+        offset = [[442344, 884688, 1327032, 1769376, 2211720],  #conv2d
+                  [20488, 40976, 61464, 81952, 102440],         #max_pool2d
+                  [12128, 24261, 36402, 48553, 60706]][layer_type_index[self.layer_type]]          #linear
         i = {"160":0, "192":1, "224":2, "299":3, "331":4}[input_size]
         begin = offset[i-1] if i-1 >= 0 else 0
         end = offset[i]

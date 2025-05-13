@@ -36,13 +36,13 @@ def train_step(epoch):
 
         metrics[0] = loss.item()
         metrics[1:] = f1(pred, targets)#accuracy, p, r, F1
-        print_interval = 100
-        if (batch_idx+1) % print_interval == 0:
+
+        if (batch_idx+1) % 1000 == 0:
             time = train_timer.stop()
             logs = '{} - Epoch:[{}][{}/{}]\tLoss:{:.3f}\tAcc:{:.3f}\tP:{:.3f}\tR:{:.3f}\tF1:{:.3f}\t{:.3f}samples/sec'
             print(logs.format('TRAIN', epoch, (batch_idx+1), len(trainloader), metrics[0],
                               metrics[1], metrics[2], metrics[3], metrics[4],
-                                print_interval * args.batch_size / time))
+                                1000 * args.batch_size / time))
             print("\n")
             train_timer.start()
             f1.reset()

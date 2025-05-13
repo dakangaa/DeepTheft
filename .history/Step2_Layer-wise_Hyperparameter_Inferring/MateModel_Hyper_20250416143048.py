@@ -74,7 +74,7 @@ class FinalBlock(nn.Module):
 
 
 class Model(nn.Module):
-    def __init__(self, args, input_channels=1): #TODO:TEST
+    def __init__(self, args, input_channels=2):
         super().__init__()
         n = 8
         filter = [n, n * 2, n * 4, n * 8]

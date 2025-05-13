@@ -157,8 +157,8 @@ if __name__ == "__main__":
         print(df)
         with pd.ExcelWriter("results/results.xlsx", if_sheet_exists="replace", mode="a") as writer:
             if args.regression:
-                df.to_excel(writer, sheet_name=args.layer_type +"_"+ "T_regression_RAPL1")
+                df.to_excel(writer, sheet_name=args.layer_type +"_"+ "T_regression")
             else:
-                df.to_excel(writer, sheet_name=args.layer_type +"_"+ "T_RAPL1")
+                df.to_excel(writer, sheet_name=args.layer_type +"_"+ "T")
     else:
         raise ValueError

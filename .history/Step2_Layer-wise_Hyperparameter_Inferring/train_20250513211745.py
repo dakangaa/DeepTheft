@@ -161,7 +161,7 @@ if __name__ == '__main__':
     parser.add_argument("--temperature", default=0.1, type=float, help="温度系数tao")
     parser.add_argument('--proto_m', default= 0.95, type=float, help='momentum of prototype update')
 
-    parser.add_argument('--data_ratio', default= 1.0, type=float) # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
+    parser.add_argument('--data_ratio', default= 1.0, type=float)
 
     args = parser.parse_args()
     learning_rate = {"kernel_size":0.001, "stride":0.001, "out_channels":0.001, "padding":0.001}

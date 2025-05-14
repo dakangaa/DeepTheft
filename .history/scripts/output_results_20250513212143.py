@@ -35,13 +35,11 @@ def test(layer_type, HyperParameters, Origin_domain_nums, test_domain, args):
             if args.mode == "O":
                 file = path + "/" + layer_type +"_"+ hp + "_" + str(v) + "_" + const_var + "_train_ckpt.pth"
                 test_cmd = ["python", "Step2_Layer-wise_Hyperparameter_Inferring/test.py", "--layer_type", layer_type,
-                            "-H", hp, "-o", str(v), "--device", args.device, "--test_domain", const_var, "--workers", "3",
-                            "--path", args.path]
+                            "-H", hp, "-o", str(v), "--device", args.device, "--test_domain", const_var, "--workers", "3"]
             elif args.mode == "T":
                 file = path + "/" + layer_type +"_"+ hp + "_" + str(const_var) + "_" + v + "_train_ckpt.pth"
                 test_cmd = ["python", "Step2_Layer-wise_Hyperparameter_Inferring/test.py", "--layer_type", layer_type,
-                            "-H", hp, "-o", str(const_var), "--device", args.device, "--test_domain", v, "--workers", "3",
-                            "--path", args.path]
+                            "-H", hp, "-o", str(const_var), "--device", args.device, "--test_domain", v, "--workers", "3"]
             if args.regression and hp == "out_channels":
                 test_cmd.append("--regression")
                 file = file.replace("train", "regression")
@@ -129,7 +127,7 @@ if __name__ == "__main__":
     parser.add_argument("--mode", type=str, default="O", help="T est_domain or O rigin_domain_nums")
     parser.add_argument("--regression", action="store_true", help="out_channels预测是否为回归任务")
     parser.add_argument("--layer_type", type=str, default="conv2d")
-    parser.add_argument('--path', default='results/MateModel_Hyper/sample_num_half', type=str, help='save_path')
+    parser.add_argument('--path', default='results/MateModel_Hyper/sample_num', type=str, help='save_path')
     args = parser.parse_args()
 
     if args.layer_type == "conv2d":
@@ -146,9 +144,9 @@ if __name__ == "__main__":
         print(df)
         with pd.ExcelWriter("results/results.xlsx", if_sheet_exists="replace", mode="a") as writer:
             if args.regression:
-                df.to_excel(writer, sheet_name=args.layer_type +"_"+ "O_regression_half")
+                df.to_excel(writer, sheet_name=args.layer_type +"_"+ "O_regression")
             else:
-                df.to_excel(writer, sheet_name=args.layer_type +"_"+ "O_half")
+                df.to_excel(writer, sheet_name=args.layer_type +"_"+ "O")
     elif args.mode == "T":
         origin_domain_nums = [4]
         test_domain = ["160", "192", "224", "299", "331"]
@@ -156,8 +154,8 @@ if __name__ == "__main__":
         print(df)
         with pd.ExcelWriter("results/results.xlsx", if_sheet_exists="replace", mode="a") as writer:
             if args.regression:
-                df.to_excel(writer, sheet_name=args.layer_type +"_"+ "T_regression_half")
+                df.to_excel(writer, sheet_name=args.layer_type +"_"+ "T_regression")
             else:
-                df.to_excel(writer, sheet_name=args.layer_type +"_"+ "T_half")
+                df.to_excel(writer, sheet_name=args.layer_type +"_"+ "T")
     else:
         raise ValueError

@@ -80,7 +80,7 @@ if args.regression:
 else:
     path = args.path + '/' + args.layer_type + "_" + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + args.test_domain + "_" + "train" + '_ckpt.pth'
 print(f"load path : {path}")
-check_point = torch.load(path)
+check_point = torch.load(path, weights_only=False)
 if args.regression:
     prototypes = torch.zeros(args.feat_dim).cuda()
     prototypes[0] = 1

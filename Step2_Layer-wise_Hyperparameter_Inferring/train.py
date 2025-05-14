@@ -121,7 +121,7 @@ def save_step(epoch, acc, f1, loss):
 
         if not os.path.exists(args.path):
             os.makedirs(args.path)
-        last_checkpoint = torch.load(path)
+        last_checkpoint = torch.load(path, weights_only=False)
         last_checkpoint["epoch"] = epoch + 1
         torch.save(last_checkpoint, path)
         print("此次epoch, 模型性能没有提高")
@@ -177,7 +177,7 @@ if __name__ == '__main__':
         if args.regression:
             # 重载预训练
             path = args.path + '/' + args.layer_type + "_" + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + args.test_domain + "_" + "regression" + '_ckpt.pth'
-            checkpoint = torch.load(path)
+            checkpoint = torch.load(path, weights_only=False)
             data = RaplLoader(args, no_val=False, input_size=input_size)
         else:
             # 重载正式训练
@@ -185,7 +185,7 @@ if __name__ == '__main__':
             #     path = args.path + '/' + args.HyperParameter + "_" + str(args.origin_domain_num) + "_train_usedomain" + '_ckpt.pth'
             # else:
             path = args.path + '/' + args.layer_type + "_" + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + args.test_domain + "_" + "train" + '_ckpt.pth'
-            checkpoint = torch.load(path)
+            checkpoint = torch.load(path, weights_only=False)
             data = RaplLoader(args, no_val=False, input_size=input_size)
         print("load path:" + path)
     else:

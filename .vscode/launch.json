@@ -1,7 +1,7 @@
 {
     "configurations": [
         {
-            "name": "Python: Test 2",
+            "name": "Test 2",
             "type": "debugpy",
             "request": "launch",
             "program": "${file}",
@@ -24,7 +24,7 @@
             ]
         },
         {
-            "name": "Python: Step 2",
+            "name": "Step 2",
             "type": "debugpy",
             "request": "launch",
             "program": "${file}",
@@ -36,17 +36,17 @@
                 "--device", "laptop", // "laptop" or "autodl"
                 "--test_domain", "331",
                 "--workers", "3",
-                "--epochs", "10",
-                "--max_epochs", "10",
+                // "--epochs", "10",
+                // "--max_epochs", "10",
 
                 "--regression",
 
                 "--path", "results/MateModel_Hyper/sample_num_half",
-                "--data_ratio", "0.5",
+                // "--data_ratio", "0.5",
             ]
         },
         {
-            "name": "Python: Step 1",
+            "name": "Step 1",
             "type": "debugpy",
             "request": "launch",
             "program": "${file}",

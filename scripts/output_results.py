@@ -126,7 +126,7 @@ if __name__ == "__main__":
     parser.add_argument("--mode", type=str, default="O", help="T est_domain or O rigin_domain_nums")
     parser.add_argument("--regression", action="store_true", help="out_channels预测是否为回归任务")
     parser.add_argument("--layer_type", type=str, default="conv2d")
-    parser.add_argument('--path', default='results/MateModel_Hyper/sample_num_half', type=str, help='save_path')
+    parser.add_argument('--path', default='results/MateModel_Hyper/sample_num_quarter', type=str, help='save_path')
     args = parser.parse_args()
 
     if args.layer_type == "conv2d":
@@ -143,9 +143,9 @@ if __name__ == "__main__":
         print(df)
         with pd.ExcelWriter("results/results.xlsx", if_sheet_exists="replace", mode="a") as writer:
             if args.regression:
-                df.to_excel(writer, sheet_name=args.layer_type +"_"+ "O_regression_half")
+                df.to_excel(writer, sheet_name=args.layer_type +"_"+ "O_regression_quarter")
             else:
-                df.to_excel(writer, sheet_name=args.layer_type +"_"+ "O_half")
+                df.to_excel(writer, sheet_name=args.layer_type +"_"+ "O_quarter")
     elif args.mode == "T":
         origin_domain_nums = [4]
         test_domain = ["160", "192", "224", "299", "331"]
@@ -153,8 +153,8 @@ if __name__ == "__main__":
         print(df)
         with pd.ExcelWriter("results/results.xlsx", if_sheet_exists="replace", mode="a") as writer:
             if args.regression:
-                df.to_excel(writer, sheet_name=args.layer_type +"_"+ "T_regression_half")
+                df.to_excel(writer, sheet_name=args.layer_type +"_"+ "T_regression_quarter")
             else:
-                df.to_excel(writer, sheet_name=args.layer_type +"_"+ "T_half")
+                df.to_excel(writer, sheet_name=args.layer_type +"_"+ "T_quarter")
     else:
         raise ValueError

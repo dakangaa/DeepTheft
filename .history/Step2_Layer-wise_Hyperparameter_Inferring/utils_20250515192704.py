@@ -66,7 +66,7 @@ class F1_score(nn.Module):
         recall = self.tp / (self.tp + self.fn + self.epsilon)  # 召回率：实际为正的样本中预测正确的比例
 
         accuracy = self.true_count / self.type_count.sum().item()
-        # 按权平均
+
         f1 = 2 * (precision * recall) / (precision + recall + self.epsilon)
         f1 = ((f1*self.type_count).sum()/self.type_count.sum()).item()
         precision = ((precision*self.type_count).sum()/self.type_count.sum()).item()

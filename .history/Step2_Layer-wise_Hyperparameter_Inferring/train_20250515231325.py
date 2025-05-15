@@ -127,7 +127,7 @@ def save_step(epoch, acc, f1, loss):
         print("此次epoch, 模型性能没有提高")
 
 def train():
-    for epoch in range(start_epoch, args.epochs):
+    for epoch in range(start_epoch, start_epoch):
         print(f">>>>>>>>>>>>>>>>>> EPOCH {epoch} <<<<<<<<<<<<<<<<<<")
         print(f"lr:{scheduler.get_last_lr()}")
         train_loss, train_acc = train_step(epoch)

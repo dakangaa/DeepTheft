@@ -43,6 +43,12 @@ class DownBlock(nn.Module):
 class FinalBlock(nn.Module):
     def __init__(self, in_channels, args):
         super().__init__()
+        self.classifier = nn.Sequential(
+            nn.AdaptiveAvgPool1d(1),
+            nn.Flatten(),
+            nn.Dropout(0.1),
+            nn.Linear(in_channels, args.num_classes),
+        )
         if args.head == "mlp":
             self.head = nn.Sequential(
                 nn.AdaptiveAvgPool1d(1),

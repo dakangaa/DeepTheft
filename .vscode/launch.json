@@ -29,17 +29,17 @@
             "program": "${file}",
             "args": [
                 "--layer_type", "conv2d",
-                "-H", "out_channels", // option: kernel_size, stride, out_channels, padding
+                "-H", "kernel_size", // option: kernel_size, stride, out_channels, padding
                 "-o", "4",
-                // "--resume",
-                "--device", "laptop", // "laptop" or "autodl"
                 "--test_domain", "299",
+                // "--regression",
+                "--device", "laptop", // "laptop" or "autodl"
                 "--workers", "3",
-                // "--epochs", "10",
-                // "--batch_size", "32",
-                // "--max_epochs", "10",
+                "--epochs", "10",
+                "--max_epochs", "10",
 
-                "--regression",
+                // "--resume",
+
             ]
         },
         {

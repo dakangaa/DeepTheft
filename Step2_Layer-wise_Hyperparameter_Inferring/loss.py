@@ -149,89 +149,6 @@ class CompLoss(nn.Module):
             loss = - (self.temperature / self.base_temperature) * mean_log_prob_pos.mean()
         return loss
 
-
-class CompNGLoss(nn.Module):
-    '''
-    Compactness Loss with class-conditional prototypes (without negative pairs)
-    '''
-    def __init__(self, args, temperature=0.1, base_temperature=0.1):
-        super(CompNGLoss, self).__init__()
-        self.args = args
-        self.temperature = temperature
-        self.base_temperature = base_temperature
-
-    def forward(self, features, prototypes, labels):
-        prototypes = F.normalize(prototypes, dim=1)
-        proxy_labels = torch.arange(0, self.args.num_classes).cuda()
-        labels = labels.contiguous().view(-1, 1)
-        mask = torch.eq(labels, proxy_labels.T).float().cuda() #bz, cls
-        # compute logits
-        feat_dot_prototype = torch.div(
-            torch.matmul(features, prototypes.T),
-            self.temperature)
-
-        # compute mean of log-likelihood over positive
-        mean_log_prob_pos = (mask * feat_dot_prototype).sum(1)
-        # loss
-        loss = - (self.temperature / self.base_temperature) * mean_log_prob_pos.mean()
-        return loss
-
-class DisLPLoss(nn.Module):
-    '''
-    Dispersion Loss with learnable prototypes
-    '''
-    def __init__(self, args, model, loader, temperature= 0.1, base_temperature=0.1):
-        super(DisLPLoss, self).__init__()
-        self.args = args
-        self.temperature = temperature
-        self.base_temperature = base_temperature
-        self.model = model
-        self.loader = loader
-        self.init_class_prototypes()
-
-    def compute(self):
-        num_cls = self.args.num_classes
-        # l2-normalize the prototypes if not normalized
-        prototypes = F.normalize(self.prototypes, dim=1)
-
-        labels = torch.arange(0, num_cls).cuda()
-        labels = labels.contiguous().view(-1, 1)
-
-        mask = (1- torch.eq(labels, labels.T).float()).cuda()
-
-        logits = torch.div(
-            torch.matmul(prototypes, prototypes.T),
-            self.temperature)
-
-        mean_prob_neg = torch.log((mask * torch.exp(logits)).sum(1) / mask.sum(1))
-        mean_prob_neg = mean_prob_neg[~torch.isnan(mean_prob_neg)]
-        # loss
-        loss = self.temperature / self.base_temperature * mean_prob_neg.mean()
-
-        return loss
-
-    def init_class_prototypes(self):
-        """Initialize class prototypes"""
-        self.model.eval()
-        start = time.time()
-        prototype_counts = [0]*self.args.num_classes
-        with torch.no_grad():
-            prototypes = torch.zeros(self.args.num_classes,self.args.feat_dim).cuda()
-            #for input, target in self.loader:
-            for i, (input, target, domain) in enumerate(self.loader):
-                input, target = input.cuda().float(), target.cuda().long()
-                features = self.model(input) # extract normalized features
-                for j, feature in enumerate(features):
-                    prototypes[target[j].item()] += feature
-                    prototype_counts[target[j].item()] += 1
-            for cls in range(self.args.num_classes):
-                prototypes[cls] /=  prototype_counts[cls]
-            # measure elapsed time
-            duration = time.time() - start
-            print(f'Time to initialize prototypes: {duration:.3f}')
-            prototypes = F.normalize(prototypes, dim=1)
-            self.prototypes = torch.nn.Parameter(prototypes)
-
 class DisLoss(nn.Module):
     '''
     Dispersion Loss with EMA prototypes
@@ -330,7 +247,7 @@ class RegressionLoss(nn.Module):
         return loss, pred
 class Loss(nn.Module):
     """
-    DisLoss and CompLoss
+    DisLoss(只用于维护类原型) and CompLoss
     """
     def __init__(self, args, net, loader):
         super(Loss, self).__init__()
@@ -349,6 +266,5 @@ class Loss(nn.Module):
 
         pred = logits.data.max(1)[1]
 
-        loss_dis = self.disLoss(features, target)
         loss_comp = self.comLoss(features, self.disLoss.prototypes, target, domain)
-        return loss_dis + self.w*loss_comp, pred, loss_dis, loss_comp
+        return loss_comp, pred, 0, loss_comp

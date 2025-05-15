@@ -36,7 +36,7 @@ def train_step(epoch):
 
         metrics[0] = loss.item()
         metrics[1:] = f1(pred, targets)#accuracy, p, r, F1
-        print_interval = 100
+        print_interval = 1000
         if (batch_idx+1) % print_interval == 0:
             time = train_timer.stop()
             logs = '{} - Epoch:[{}][{}/{}]\tLoss:{:.3f}\tAcc:{:.3f}\tP:{:.3f}\tR:{:.3f}\tF1:{:.3f}\t{:.3f}samples/sec'

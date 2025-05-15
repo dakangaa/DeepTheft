@@ -122,7 +122,7 @@ class Rapl(torch.utils.data.Dataset):
         with h5py.File(self.file_path, "r") as f:
             dataset_trace = f["trace"]
             dataset_hp = f["hp"]
-            self.bunch_data["trace"] = [dataset_trace[self.index_dict[i]][:, 1:2] for i in range(self.begin, self.end)] #TEST:
+            self.bunch_data["trace"] = [dataset_trace[self.index_dict[i]][:, 2:3] for i in range(self.begin, self.end)] #TEST:
             self.bunch_data["hp"] = [dataset_hp[self.index_dict[i]][:] for i in range(self.begin, self.end)]
         rapl_timer.stop()
 

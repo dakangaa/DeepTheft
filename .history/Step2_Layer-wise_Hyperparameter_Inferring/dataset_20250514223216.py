@@ -99,7 +99,7 @@ class Rapl(torch.utils.data.Dataset):
     def __init__(self, file_path, index_dict, transform, target_transform):
         super().__init__()
         self.index_dict = index_dict
-        self.bunch_size = 2*600 * 128 #TEST: 2*600
+        self.bunch_size = 2*600 * 128
         if ALL_LOAD:
             self.bunch_size = 2211720 # 最大可能的样本数
         self.begin = -1 # 当前bunch的位置

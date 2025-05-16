@@ -124,11 +124,10 @@ if __name__ == "__main__":
     parser.add_argument("--mode", type=str, default="O", help="T est_domain or O rigin_domain_nums")
     parser.add_argument("--regression", action="store_true", help="out_channels预测是否为回归任务")
     parser.add_argument("--layer_type", type=str, default="conv2d")
-    parser.add_argument('--path', default='results/de_Lvar', type=str, help='save_path')
     args = parser.parse_args()
 
     if args.layer_type == "conv2d":
-        HyperParameters = ["kernel_size"]
+        HyperParameters = ["kernel_size", "out_channels", "stride"]
     elif args.layer_type == "max_pool2d":
         HyperParameters = ["kernel_size", "padding"]
     elif args.layer_type == "linear":

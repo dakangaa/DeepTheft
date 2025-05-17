@@ -128,7 +128,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.layer_type == "conv2d":
-        HyperParameters = ["out_channels"]
+        HyperParameters = ["kernel_size"]
     elif args.layer_type == "max_pool2d":
         HyperParameters = ["kernel_size", "padding"]
     elif args.layer_type == "linear":

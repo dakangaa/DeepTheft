@@ -8,6 +8,7 @@ import argparse
 
 def test(layer_type, HyperParameters, Origin_domain_nums, test_domain, args):
 
+    path = "results/de_mlp"
     if args.mode == "O":
         var2 = Origin_domain_nums
         indexes = pd.MultiIndex.from_product(
@@ -32,11 +33,11 @@ def test(layer_type, HyperParameters, Origin_domain_nums, test_domain, args):
             print(log.format(hp, v))
             print("testing...")
             if args.mode == "O":
-                file = args.path + "/" + layer_type +"_"+ hp + "_" + str(v) + "_" + const_var + "_train_ckpt.pth"
+                file = path + "/" + layer_type +"_"+ hp + "_" + str(v) + "_" + const_var + "_train_ckpt.pth"
                 test_cmd = ["python", "Step2_Layer-wise_Hyperparameter_Inferring/test.py", "--layer_type", layer_type,
                             "-H", hp, "-o", str(v), "--device", args.device, "--test_domain", const_var, "--workers", "3"]
             elif args.mode == "T":
-                file = args.path + "/" + layer_type +"_"+ hp + "_" + str(const_var) + "_" + v + "_train_ckpt.pth"
+                file = path + "/" + layer_type +"_"+ hp + "_" + str(const_var) + "_" + v + "_train_ckpt.pth"
                 test_cmd = ["python", "Step2_Layer-wise_Hyperparameter_Inferring/test.py", "--layer_type", layer_type,
                             "-H", hp, "-o", str(const_var), "--device", args.device, "--test_domain", v, "--workers", "3"]
             if args.regression and hp == "out_channels":
@@ -61,6 +62,8 @@ def test(layer_type, HyperParameters, Origin_domain_nums, test_domain, args):
 
 
 def read_ckpt(layer_type, hyperParameters, origin_domain_nums, test_domain, columns, is_regression=False):
+    path = "results/de_mlp"
+
     indexes = pd.MultiIndex.from_product(
         [hyperParameters, origin_domain_nums],
         names=["HyperParameters", "Origin_domain_nums"]
@@ -76,9 +79,9 @@ def read_ckpt(layer_type, hyperParameters, origin_domain_nums, test_domain, colu
             log = "HyperParameter:{}\t Origin_domain_nums:{}\t \nloading checkpoint..."
             print(log.format(hp, od))
             if is_regression and hp == "out_channels":
-                file = args.path + '/' + layer_type +"_"+ hp + "_" + str(od) + "_" + "331" + "_" + "regression" + '_ckpt.pth'
+                file = path + '/' + layer_type +"_"+ hp + "_" + str(od) + "_" + "331" + "_" + "regression" + '_ckpt.pth'
             else:
-                file = args.path + '/' + layer_type +"_"+ hp + "_" + str(od) + "_" + "331" + "_" + "train" + '_ckpt.pth'
+                file = path + '/' + layer_type +"_"+ hp + "_" + str(od) + "_" + "331" + "_" + "train" + '_ckpt.pth'
             checkpoint = torch.load(file, map_location=torch.device('cpu'))
             for col in columns:
                 if col not in checkpoint.keys():
@@ -90,9 +93,9 @@ def read_ckpt(layer_type, hyperParameters, origin_domain_nums, test_domain, colu
                     df_od.loc[(hp, od), col] = checkpoint[col]
         for td in test_domain:
             if is_regression and hp == "out_channels":
-                file = args.path + '/' + layer_type +"_"+ hp + "_" + str(4) + "_" + td + "_" + "regression" + '_ckpt.pth'
+                file = path + '/' + layer_type +"_"+ hp + "_" + str(4) + "_" + td + "_" + "regression" + '_ckpt.pth'
             else:
-                file = args.path + '/' + layer_type +"_"+ hp + "_" + str(4) + "_" + td + "_" + "train" + '_ckpt.pth'
+                file = path + '/' + layer_type +"_"+ hp + "_" + str(4) + "_" + td + "_" + "train" + '_ckpt.pth'
             checkpoint = torch.load(file, map_location=torch.device('cpu'))
             for col in columns:
                 if col not in checkpoint.keys():
@@ -106,53 +109,52 @@ def read_ckpt(layer_type, hyperParameters, origin_domain_nums, test_domain, colu
 
 if __name__ == "__main__":
     # read epoch
-    # HyperParameters = ["kernel_size", "out_channels", "stride"]
-    # Origin_domain_nums = [1,2,3,4]
-    # columns = ["epoch", "loss_value"]
-    # test_domain = ["160", "192", "224", "299", "331"]
-    # df_od, df_td = read_ckpt(HyperParameters, Origin_domain_nums, test_domain, columns)
-    # print(df_od)
-    # print(df_td)
-    # with pd.ExcelWriter("results/results.xlsx", if_sheet_exists="replace", mode="a") as writer:
-    #     df_od.to_excel(writer, sheet_name=args.layer_type + "O")
-    # with pd.ExcelWriter("results/results.xlsx", if_sheet_exists="replace", mode="a") as writer:
-    #     df_td.to_excel(writer, sheet_name=args.layer_type + "T")
+    HyperParameters = ["kernel_size", "out_channels"]
+    Origin_domain_nums = [4]
+    columns = ["epoch", "loss_value"]
+    test_domain = ["160", "192", "224", "299", "331"]
+    df_od, df_td = read_ckpt(HyperParameters, Origin_domain_nums, test_domain, columns)
+    print(df_od)
+    print(df_td)
+    with pd.ExcelWriter("results/results.xlsx", if_sheet_exists="replace", mode="a") as writer:
+        df_od.to_excel(writer, sheet_name=args.layer_type + "O")
+    with pd.ExcelWriter("results/results.xlsx", if_sheet_exists="replace", mode="a") as writer:
+        df_td.to_excel(writer, sheet_name=args.layer_type + "T")
 
     # test
-    parser = argparse.ArgumentParser(description='collect data')
-    parser.add_argument("--device", type=str, default="autodl", help="laptop or autodl")
-    parser.add_argument("--mode", type=str, default="O", help="T est_domain or O rigin_domain_nums")
-    parser.add_argument("--regression", action="store_true", help="out_channels预测是否为回归任务")
-    parser.add_argument("--layer_type", type=str, default="conv2d")
-    parser.add_argument('--path', default='results/de_mlp', type=str, help='save_path')
-    args = parser.parse_args()
+    # parser = argparse.ArgumentParser(description='collect data')
+    # parser.add_argument("--device", type=str, default="autodl", help="laptop or autodl")
+    # parser.add_argument("--mode", type=str, default="O", help="T est_domain or O rigin_domain_nums")
+    # parser.add_argument("--regression", action="store_true", help="out_channels预测是否为回归任务")
+    # parser.add_argument("--layer_type", type=str, default="conv2d")
+    # args = parser.parse_args()
 
-    if args.layer_type == "conv2d":
-        HyperParameters = ["out_channels"]
-    elif args.layer_type == "max_pool2d":
-        HyperParameters = ["kernel_size", "padding"]
-    elif args.layer_type == "linear":
-        HyperParameters = ["out_channels"]
+    # if args.layer_type == "conv2d":
+    #     HyperParameters = ["kernel_size", "out_channels", "stride"]
+    # elif args.layer_type == "max_pool2d":
+    #     HyperParameters = ["kernel_size", "padding"]
+    # elif args.layer_type == "linear":
+    #     HyperParameters = ["out_channels"]
 
-    if args.mode == "O":
-        origin_domain_nums = [1,2,3,4]
-        test_domain = ["331"]
-        df = test(args.layer_type, HyperParameters, origin_domain_nums, test_domain, args)
-        print(df)
-        with pd.ExcelWriter("results/results.xlsx", if_sheet_exists="replace", mode="a") as writer:
-            if args.regression:
-                df.to_excel(writer, sheet_name=args.layer_type +"_"+ "O_regression")
-            else:
-                df.to_excel(writer, sheet_name=args.layer_type +"_"+ "O")
-    elif args.mode == "T":
-        origin_domain_nums = [4]
-        test_domain = ["160", "192", "224", "299", "331"]
-        df = test(args.layer_type, HyperParameters, origin_domain_nums, test_domain, args)
-        print(df)
-        with pd.ExcelWriter("results/results.xlsx", if_sheet_exists="replace", mode="a") as writer:
-            if args.regression:
-                df.to_excel(writer, sheet_name=args.layer_type +"_"+ "T_regression_demlp")
-            else:
-                df.to_excel(writer, sheet_name=args.layer_type +"_"+ "T_demlp")
-    else:
-        raise ValueError
+    # if args.mode == "O":
+    #     origin_domain_nums = [1,2,3,4]
+    #     test_domain = ["331"]
+    #     df = test(args.layer_type, HyperParameters, origin_domain_nums, test_domain, args)
+    #     print(df)
+    #     with pd.ExcelWriter("results/results.xlsx", if_sheet_exists="replace", mode="a") as writer:
+    #         if args.regression:
+    #             df.to_excel(writer, sheet_name=args.layer_type +"_"+ "O_regression")
+    #         else:
+    #             df.to_excel(writer, sheet_name=args.layer_type +"_"+ "O")
+    # elif args.mode == "T":
+    #     origin_domain_nums = [4]
+    #     test_domain = ["160", "192", "224", "299", "331"]
+    #     df = test(args.layer_type, HyperParameters, origin_domain_nums, test_domain, args)
+    #     print(df)
+    #     with pd.ExcelWriter("results/results.xlsx", if_sheet_exists="replace", mode="a") as writer:
+    #         if args.regression:
+    #             df.to_excel(writer, sheet_name=args.layer_type +"_"+ "T_regression")
+    #         else:
+    #             df.to_excel(writer, sheet_name=args.layer_type +"_"+ "T")
+    # else:
+    #     raise ValueError

@@ -47,7 +47,6 @@ class FinalBlock(nn.Module):
             nn.AdaptiveAvgPool1d(1),
             nn.Flatten(),
             nn.Linear(in_channels, args.feat_dim)
-        )
 
     def forward(self, x):
         # if self.pretrain:

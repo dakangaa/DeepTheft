@@ -29,10 +29,10 @@
             "program": "${file}",
             "args": [
                 "--layer_type", "conv2d",
-                "-H", "kernel_size", // option: kernel_size, stride, out_channels, padding
+                "-H", "out_channels", // option: kernel_size, stride, out_channels, padding
                 "-o", "4",
                 "--test_domain", "299",
-                // "--regression",
+                "--regression",
                 "--device", "laptop", // "laptop" or "autodl"
                 "--workers", "3",
                 "--epochs", "10",

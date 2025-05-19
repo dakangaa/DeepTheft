@@ -30,7 +30,7 @@
             "program": "${file}",
             "args": [
                 "--layer_type", "conv2d",
-                "-H", "out_channels", // option: kernel_size, stride, out_channels, padding
+                "-H", "stride", // option: kernel_size, stride, out_channels, padding
                 "-o", "4",
                 // "--resume",
                 "--device", "laptop", // "laptop" or "autodl"
@@ -39,7 +39,7 @@
                 "--epochs", "10",
                 "--max_epochs", "10",
 
-                "--regression",
+                // "--regression",
                 "--path", "results/MateModel_Hyper/RAPL1"
             ]
         },

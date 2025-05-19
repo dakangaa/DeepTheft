@@ -8,6 +8,7 @@ import argparse
 
 def test(layer_type, HyperParameters, Origin_domain_nums, test_domain, args):
 
+    path = "results/MateModel_Hyper"
     if args.mode == "O":
         var2 = Origin_domain_nums
         indexes = pd.MultiIndex.from_product(
@@ -32,12 +33,12 @@ def test(layer_type, HyperParameters, Origin_domain_nums, test_domain, args):
             print(log.format(hp, v))
             print("testing...")
             if args.mode == "O":
-                file = args.path + "/" + layer_type +"_"+ hp + "_" + str(v) + "_" + const_var + "_train_ckpt.pth"
+                file = path + "/" + layer_type +"_"+ hp + "_" + str(v) + "_" + const_var + "_train_ckpt.pth"
                 test_cmd = ["python", "Step2_Layer-wise_Hyperparameter_Inferring/test.py", "--layer_type", layer_type,
                             "-H", hp, "-o", str(v), "--device", args.device, "--test_domain", const_var, "--workers", "3",
                             "--path", args.path]
             elif args.mode == "T":
-                file = args.path + "/" + layer_type +"_"+ hp + "_" + str(const_var) + "_" + v + "_train_ckpt.pth"
+                file = path + "/" + layer_type +"_"+ hp + "_" + str(const_var) + "_" + v + "_train_ckpt.pth"
                 test_cmd = ["python", "Step2_Layer-wise_Hyperparameter_Inferring/test.py", "--layer_type", layer_type,
                             "-H", hp, "-o", str(const_var), "--device", args.device, "--test_domain", v, "--workers", "3",
                             "--path", args.path]
@@ -63,6 +64,8 @@ def test(layer_type, HyperParameters, Origin_domain_nums, test_domain, args):
 
 
 def read_ckpt(layer_type, hyperParameters, origin_domain_nums, test_domain, columns, is_regression=False):
+    path = "results/MateModel_Hyper"
+
     indexes = pd.MultiIndex.from_product(
         [hyperParameters, origin_domain_nums],
         names=["HyperParameters", "Origin_domain_nums"]
@@ -78,9 +81,9 @@ def read_ckpt(layer_type, hyperParameters, origin_domain_nums, test_domain, colu
             log = "HyperParameter:{}\t Origin_domain_nums:{}\t \nloading checkpoint..."
             print(log.format(hp, od))
             if is_regression and hp == "out_channels":
-                file = args.path + '/' + layer_type +"_"+ hp + "_" + str(od) + "_" + "331" + "_" + "regression" + '_ckpt.pth'
+                file = path + '/' + layer_type +"_"+ hp + "_" + str(od) + "_" + "331" + "_" + "regression" + '_ckpt.pth'
             else:
-                file = args.path + '/' + layer_type +"_"+ hp + "_" + str(od) + "_" + "331" + "_" + "train" + '_ckpt.pth'
+                file = path + '/' + layer_type +"_"+ hp + "_" + str(od) + "_" + "331" + "_" + "train" + '_ckpt.pth'
             checkpoint = torch.load(file, map_location=torch.device('cpu'))
             for col in columns:
                 if col not in checkpoint.keys():
@@ -92,9 +95,9 @@ def read_ckpt(layer_type, hyperParameters, origin_domain_nums, test_domain, colu
                     df_od.loc[(hp, od), col] = checkpoint[col]
         for td in test_domain:
             if is_regression and hp == "out_channels":
-                file = args.path + '/' + layer_type +"_"+ hp + "_" + str(4) + "_" + td + "_" + "regression" + '_ckpt.pth'
+                file = path + '/' + layer_type +"_"+ hp + "_" + str(4) + "_" + td + "_" + "regression" + '_ckpt.pth'
             else:
-                file = args.path + '/' + layer_type +"_"+ hp + "_" + str(4) + "_" + td + "_" + "train" + '_ckpt.pth'
+                file = path + '/' + layer_type +"_"+ hp + "_" + str(4) + "_" + td + "_" + "train" + '_ckpt.pth'
             checkpoint = torch.load(file, map_location=torch.device('cpu'))
             for col in columns:
                 if col not in checkpoint.keys():
@@ -154,7 +157,7 @@ if __name__ == "__main__":
         print(df)
         with pd.ExcelWriter("results/results.xlsx", if_sheet_exists="replace", mode="a") as writer:
             if args.regression:
-                df.to_excel(writer, sheet_name=args.layer_type +"_"+ "T_regression_RAPL1") #TODO
+                df.to_excel(writer, sheet_name=args.layer_type +"_"+ "T_regression_RAPL1") #TODO:需要改成RAPL2
             else:
                 df.to_excel(writer, sheet_name=args.layer_type +"_"+ "T_RAPL1")
     else:

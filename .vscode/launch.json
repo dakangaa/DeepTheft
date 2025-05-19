@@ -30,19 +30,19 @@
             "program": "${file}",
             "args": [
                 "--layer_type", "conv2d",
-                "-H", "out_channels", // option: kernel_size, stride, out_channels, padding
+                "-H", "stride", // option: kernel_size, stride, out_channels, padding
                 "-o", "4",
                 // "--resume",
                 "--device", "laptop", // "laptop" or "autodl"
                 "--test_domain", "331",
                 "--workers", "3",
-                // "--epochs", "10",
-                // "--max_epochs", "10",
+                "--epochs", "10",
+                "--max_epochs", "10",
 
-                "--regression",
+                // "--regression",
 
                 "--path", "results/MateModel_Hyper/sample_num_half",
-                // "--data_ratio", "0.5",
+                "--data_ratio", "0.5",
             ]
         },
         {

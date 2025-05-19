@@ -53,7 +53,7 @@ def test(layer_type, HyperParameters, Origin_domain_nums, test_domain, args):
                     df.loc[(hp, v), "TEST_P"] = float(re.search(r"P:([0-9.]+)", line).group(1))
                     df.loc[(hp, v), "TEST_R"] = float(re.search(r"R:([0-9.]+)", line).group(1))
 
-            checkpoint = torch.load(file)
+            checkpoint = torch.load(file, weights_only=False)
             df.loc[(hp, v), "VAL_ACC"] = checkpoint["acc"][0]
             df.loc[(hp, v), "VAL_F1"] = checkpoint["f1"][0]
 
@@ -81,7 +81,7 @@ def read_ckpt(layer_type, hyperParameters, origin_domain_nums, test_domain, colu
                 file = args.path + '/' + layer_type +"_"+ hp + "_" + str(od) + "_" + "331" + "_" + "regression" + '_ckpt.pth'
             else:
                 file = args.path + '/' + layer_type +"_"+ hp + "_" + str(od) + "_" + "331" + "_" + "train" + '_ckpt.pth'
-            checkpoint = torch.load(file, map_location=torch.device('cpu'))
+            checkpoint = torch.load(file, map_location=torch.device('cpu'), weights_only=False)
             for col in columns:
                 if col not in checkpoint.keys():
                     df_od.loc[(hp, od), col] = float("nan")
@@ -95,7 +95,7 @@ def read_ckpt(layer_type, hyperParameters, origin_domain_nums, test_domain, colu
                 file = args.path + '/' + layer_type +"_"+ hp + "_" + str(4) + "_" + td + "_" + "regression" + '_ckpt.pth'
             else:
                 file = args.path + '/' + layer_type +"_"+ hp + "_" + str(4) + "_" + td + "_" + "train" + '_ckpt.pth'
-            checkpoint = torch.load(file, map_location=torch.device('cpu'))
+            checkpoint = torch.load(file, map_location=torch.device('cpu'), weights_only=False)
             for col in columns:
                 if col not in checkpoint.keys():
                     df_td.loc[(hp, td), col] = float("nan")

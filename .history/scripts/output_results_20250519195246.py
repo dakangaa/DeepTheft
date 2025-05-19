@@ -153,8 +153,8 @@ if __name__ == "__main__":
         print(df)
         with pd.ExcelWriter("results/results.xlsx", if_sheet_exists="replace", mode="a") as writer:
             if args.regression:
-                df.to_excel(writer, sheet_name=args.layer_type +"_"+ "T_regression_quarter_S") #half
+                df.to_excel(writer, sheet_name=args.layer_type +"_"+ "T_regression_half_S") #half
             else:
-                df.to_excel(writer, sheet_name=args.layer_type +"_"+ "T_quarter_S")
+                df.to_excel(writer, sheet_name=args.layer_type +"_"+ "T_half_S")
     else:
         raise ValueError

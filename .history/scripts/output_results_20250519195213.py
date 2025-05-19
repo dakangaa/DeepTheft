@@ -130,7 +130,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.layer_type == "conv2d":
-        HyperParameters = ["stride"]
+        HyperParameters = ["kernel_size", "out_channels"]
     elif args.layer_type == "max_pool2d":
         HyperParameters = ["kernel_size", "padding"]
     elif args.layer_type == "linear":
@@ -153,8 +153,8 @@ if __name__ == "__main__":
         print(df)
         with pd.ExcelWriter("results/results.xlsx", if_sheet_exists="replace", mode="a") as writer:
             if args.regression:
-                df.to_excel(writer, sheet_name=args.layer_type +"_"+ "T_regression_quarter_S") #half
+                df.to_excel(writer, sheet_name=args.layer_type +"_"+ "T_regression_half") #half
             else:
-                df.to_excel(writer, sheet_name=args.layer_type +"_"+ "T_quarter_S")
+                df.to_excel(writer, sheet_name=args.layer_type +"_"+ "T_half")
     else:
         raise ValueError

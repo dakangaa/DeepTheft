@@ -123,7 +123,7 @@ if __name__ == "__main__":
     # test
     parser = argparse.ArgumentParser(description='collect data')
     parser.add_argument("--device", type=str, default="autodl", help="laptop or autodl")
-    parser.add_argument("--mode", type=str, default="T", help="T est_domain or O rigin_domain_nums")
+    parser.add_argument("--mode", type=str, default="O", help="T est_domain or O rigin_domain_nums")
     parser.add_argument("--regression", action="store_true", help="out_channels预测是否为回归任务")
     parser.add_argument("--layer_type", type=str, default="conv2d")
     parser.add_argument('--path', default='results/MateModel_Hyper', type=str, help='load_path')
@@ -154,8 +154,8 @@ if __name__ == "__main__":
         print(df)
         with pd.ExcelWriter("results/results.xlsx", if_sheet_exists="replace", mode="a") as writer:
             if args.regression:
-                df.to_excel(writer, sheet_name=args.layer_type +"_"+ "T_regression_RAPL2_S") #RAPL1
+                df.to_excel(writer, sheet_name=args.layer_type +"_"+ "T_regression_RAPL1_S") #RAPL1
             else:
-                df.to_excel(writer, sheet_name=args.layer_type +"_"+ "T_RAPL2_S")
+                df.to_excel(writer, sheet_name=args.layer_type +"_"+ "T_RAPL1_S")
     else:
         raise ValueError

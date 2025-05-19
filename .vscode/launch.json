@@ -11,7 +11,7 @@
                 "--device", "laptop",  // "laptop" or "autodl"
                 "--mode", "T",
                 "--regression",
-                "--path", "results/MateModel_Hyper/RAPL1",
+                "--path", "results/MateModel_Hyper/RAPL2", //RAPL1
             ]
         },
         {

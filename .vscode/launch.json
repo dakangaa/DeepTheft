@@ -10,7 +10,8 @@
                 "--layer_type", "conv2d",
                 "--device", "laptop",  // "laptop" or "autodl"
                 "--mode", "T",
-                "--regression"
+                "--regression",
+                "--path", "results/de_mlp"
             ]
         },
         {

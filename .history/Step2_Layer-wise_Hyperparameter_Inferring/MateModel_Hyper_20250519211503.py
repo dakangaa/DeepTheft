@@ -96,10 +96,3 @@ class Model(nn.Module):
         out = F.normalize(out, dim=1)
         return out
 
-    def layer_wise_get_feat(self, x):
-        _, down_x1 = self.down_conv1(x)
-        _, down_x2 = self.down_conv2(down_x1)
-        _, down_x3 = self.down_conv3(down_x2)
-        _, down_x4 = self.down_conv4(down_x3)
-        return [down_x1, down_x2, down_x3, down_x4]
-

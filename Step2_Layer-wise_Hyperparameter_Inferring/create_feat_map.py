@@ -6,8 +6,9 @@ from utils import Timer
 
 class Args():
     def __init__(self):
-        self.mode = "regression"
-        self.HyperParameter = "out_channels"
+        self.mode = "train"
+        self.HyperParameter = "stride"
+        self.mode = "regression" if self.HyperParameter == "out_channels" else "train"
         self.test_domain = "331"
         self.origin_domain_num = 4
 
@@ -18,8 +19,7 @@ class Args():
         self.layer_type = "conv2d"
         self.batch_size = 128
         self.workers = 3
-        if self.mode == "regression":
-            self.regression = True
+        self.regression = True if self.mode == "regression" else False
 
 args = Args()
 ckpt_path = "_".join(["results/MateModel_Hyper/conv2d", args.HyperParameter, str(args.origin_domain_num), args.test_domain, args.mode, "ckpt.pth"])
@@ -33,27 +33,46 @@ data = RaplLoader(args, no_val=True, input_size=input_size)
 test_loader = data.get_loader()
 
 import numpy as np
-all_features = [[],[],[],[]]
+all_features = [[],[],[],[],[]]
 all_labels = []
 net.eval()
 timer = Timer()
 timer.start()
+# with torch.no_grad():
+#     for batch_idx, (inputs, targets) in enumerate(test_loader):
+#         inputs, targets = inputs.to(args.device).float(), targets.numpy()
+#         down_xn = net.layer_wise_get_feat(inputs)
+#         for i in range(0, 5):
+#             down_xi = down_xn[i].cpu().numpy()
+#             down_xi = down_xi.reshape(down_xn[i].shape[0], -1)
+#             all_features[i].append(down_xi)
+#         all_labels.append(targets)
+#         if (batch_idx+1)%100 == 0:
+#             timer.stop()
+#             print(f"[{batch_idx+1}/{len(test_loader)}] : {batch_idx*args.batch_size/timer.sum():.3f}samples/sec")
+#             timer.start()
+# all_features = [np.concatenate(feats, axis=0) for feats in all_features]
+# all_labels = np.concatenate(all_labels, axis=0)
+
+# for i, feats in enumerate(all_features, start=1):
+#     np.save(f"/root/autodl-tmp/feature_map/{args.HyperParameter}_{args.origin_domain_num}_{args.test_domain}_encoder_{i}.npy", feats)
+# np.save(f"/root/autodl-tmp/feature_map/{args.HyperParameter}_{args.origin_domain_num}_{args.test_domain}_labels.npy", all_labels)
+
 with torch.no_grad():
     for batch_idx, (inputs, targets) in enumerate(test_loader):
         inputs, targets = inputs.to(args.device).float(), targets.numpy()
         down_xn = net.layer_wise_get_feat(inputs)
-        for i in range(0, 4):
-            down_xi = down_xn[i].cpu().numpy()
-            down_xi = down_xi.reshape(down_xn[i].shape[0], -1)
-            all_features[i].append(down_xi)
+        i = 4
+        out = down_xn[i].cpu().numpy()
+        out = out.reshape(down_xn[i].shape[0], -1)
+        all_features[i].append(out)
         all_labels.append(targets)
         if (batch_idx+1)%100 == 0:
             timer.stop()
             print(f"[{batch_idx+1}/{len(test_loader)}] : {batch_idx*args.batch_size/timer.sum():.3f}samples/sec")
             timer.start()
-all_features = [np.concatenate(feats, axis=0) for feats in all_features]
+all_features[4] = np.concatenate(all_features[4], axis=0)
 all_labels = np.concatenate(all_labels, axis=0)
 
-for i, feats in enumerate(all_features, start=1):
-    np.save(f"feature_map/{args.HyperParameter}_{args.origin_domain_num}_{args.test_domain}_encoder_{i}.npy", feats)
-np.save(f"feature_map/{args.HyperParameter}_{args.origin_domain_num}_{args.test_domain}_labels.npy", all_labels)
+i = 5
+np.save(f"/root/autodl-tmp/feature_map/{args.HyperParameter}_{args.origin_domain_num}_{args.test_domain}_encoder_{i}.npy", all_features[i-1])

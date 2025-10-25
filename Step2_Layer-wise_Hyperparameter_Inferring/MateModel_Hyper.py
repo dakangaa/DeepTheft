@@ -101,5 +101,8 @@ class Model(nn.Module):
         _, down_x2 = self.down_conv2(down_x1)
         _, down_x3 = self.down_conv3(down_x2)
         _, down_x4 = self.down_conv4(down_x3)
-        return [down_x1, down_x2, down_x3, down_x4]
+
+        out = self.final(down_x4)
+        out = F.normalize(out, dim=1)
+        return [down_x1, down_x2, down_x3, down_x4, out]
 

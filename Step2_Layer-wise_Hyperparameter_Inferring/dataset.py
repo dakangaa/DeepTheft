@@ -10,7 +10,7 @@ import time
 from utils import Timer
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
-ALL_LOAD = False # 是否加载所有数据
+ALL_LOAD = True # 是否加载所有数据
 class Normalization(torch.nn.Module):
     def __init__(self):
         super().__init__()

@@ -74,7 +74,6 @@ class CompLoss(nn.Module):
         self.args = args
         self.temperature = temperature
         self.base_temperature = base_temperature
-        self.use_domain = args.use_domain
 
     def forward(self, features, prototypes, labels, domains):
 
@@ -89,64 +88,64 @@ class CompLoss(nn.Module):
             torch.matmul(features, prototypes.T),
             self.temperature) # z*mu/tao : (bz, cls)
 
-        if self.use_domain:
-            # 如果使用域信息，获取域标签并调整其形状
-            domains = domains.contiguous().view(-1, 1)
+        # if self.use_domain:
+            # # 如果使用域信息，获取域标签并调整其形状
+            # domains = domains.contiguous().view(-1, 1)
 
-            # 计算特征之间的相似度
-            feat_dot_feat = torch.div(
-                torch.matmul(features, features.T),
-                self.temperature
-            )  # (batch_size, batch_size)
+            # # 计算特征之间的相似度
+            # feat_dot_feat = torch.div(
+                # torch.matmul(features, features.T),
+                # self.temperature
+            # )  # (batch_size, batch_size)
 
-            # 创建标签掩码，判断样本是否属于相同类别
-            label_mask = torch.eq(labels, labels.T).float().cuda()  # (batch_size, batch_size)
-            neg_label_mask = 1 - label_mask  # 取反，表示不同类别的样本
-            # 创建域掩码，判断样本是否来自相同域
-            domain_mask = torch.eq(domains, domains.T).float().cuda()  # (batch_size, batch_size)
-            neg_label_pos_domain_mask = neg_label_mask * domain_mask  # 同域不同类样本mask
+            # # 创建标签掩码，判断样本是否属于相同类别
+            # label_mask = torch.eq(labels, labels.T).float().cuda()  # (batch_size, batch_size)
+            # neg_label_mask = 1 - label_mask  # 取反，表示不同类别的样本
+            # # 创建域掩码，判断样本是否来自相同域
+            # domain_mask = torch.eq(domains, domains.T).float().cuda()  # (batch_size, batch_size)
+            # neg_label_pos_domain_mask = neg_label_mask * domain_mask  # 同域不同类样本mask
 
-            # 为了数值稳定性，计算每个样本最相似的原型和特征
-            logits_max, _ = torch.max(feat_dot_prototype, dim=1, keepdim=True)  # 每个样本的最大类别相似度
-            feat_logits_max, _ = torch.max(feat_dot_feat, dim=1, keepdim=True)  # 每个样本的最大相似度（自己与自己）
+            # # 为了数值稳定性，计算每个样本最相似的原型和特征
+            # logits_max, _ = torch.max(feat_dot_prototype, dim=1, keepdim=True)  # 每个样本的最大类别相似度
+            # feat_logits_max, _ = torch.max(feat_dot_feat, dim=1, keepdim=True)  # 每个样本的最大相似度（自己与自己）
 
-            # 通过最大值进行稳定化
-            logits_max = torch.max(feat_logits_max, feat_logits_max)  # 这一步似乎没有意义，可以省略
+            # # 通过最大值进行稳定化
+            # logits_max = torch.max(feat_logits_max, feat_logits_max)  # 这一步似乎没有意义，可以省略
 
-            # 使用最大值进行稳定化，避免数值过大
-            prot_logits = feat_dot_prototype - logits_max.detach()  # 稳定化后的原型对比得分
-            feat_logits = feat_dot_feat - logits_max.detach()  # 稳定化后的特征对比得分
+            # # 使用最大值进行稳定化，避免数值过大
+            # prot_logits = feat_dot_prototype - logits_max.detach()  # 稳定化后的原型对比得分
+            # feat_logits = feat_dot_feat - logits_max.detach()  # 稳定化后的特征对比得分
 
-            # 计算每个原型的指数分布（softmax-like）
-            exp_prot_logits = torch.exp(prot_logits)
-            exp_feat_logits = torch.exp(feat_logits)
+            # # 计算每个原型的指数分布（softmax-like）
+            # exp_prot_logits = torch.exp(prot_logits)
+            # exp_feat_logits = torch.exp(feat_logits)
 
-            # 正样本部分：同类别样本的对比损失 (分子部分)
-            pos_part = (prot_logits * mask).sum(1, keepdim=True)  # (batch_size, 1)
+            # # 正样本部分：同类别样本的对比损失 (分子部分)
+            # pos_part = (prot_logits * mask).sum(1, keepdim=True)  # (batch_size, 1)
 
-            # 计算负样本部分：所有类别的对比损失 （分母部分）
-            prot_neg_pairs = exp_prot_logits.sum(1, keepdim=True)  # 所有原型的对比得分总和
-            same_domain_neg_pairs = (neg_label_pos_domain_mask * exp_feat_logits).sum(1, keepdim=True)  # 同域且不同标签的对比得分
-            neg_part = torch.log(prot_neg_pairs + same_domain_neg_pairs + 1e-8)  # (batch_size, 1)
+            # # 计算负样本部分：所有类别的对比损失 （分母部分）
+            # prot_neg_pairs = exp_prot_logits.sum(1, keepdim=True)  # 所有原型的对比得分总和
+            # same_domain_neg_pairs = (neg_label_pos_domain_mask * exp_feat_logits).sum(1, keepdim=True)  # 同域且不同标签的对比得分
+            # neg_part = torch.log(prot_neg_pairs + same_domain_neg_pairs + 1e-8)  # (batch_size, 1)
 
-            # 计算最终的对比损失
-            loss = - (self.temperature / self.base_temperature) * (pos_part - neg_part).mean()  # 对比损失平均值
+            # # 计算最终的对比损失
+            # loss = - (self.temperature / self.base_temperature) * (pos_part - neg_part).mean()  # 对比损失平均值
 
-        else:
-            # 不使用域信息
-            # for numerical stability
-            logits_max, _ = torch.max(feat_dot_prototype, dim=1, keepdim=True)
-            logits = feat_dot_prototype - logits_max.detach()
+        # else:
+        # 不使用域信息
+        # for numerical stability
+        logits_max, _ = torch.max(feat_dot_prototype, dim=1, keepdim=True)
+        logits = feat_dot_prototype - logits_max.detach()
 
-            # compute log_prob
-            exp_logits = torch.exp(logits)
-            log_prob = logits - torch.log(exp_logits.sum(1, keepdim=True)) # log(exp(logits)) - log(exp(logits).sum())
+        # compute log_prob
+        exp_logits = torch.exp(logits)
+        log_prob = logits - torch.log(exp_logits.sum(1, keepdim=True)) # log(exp(logits)) - log(exp(logits).sum())
 
-            # compute mean of log-likelihood over positive
-            mean_log_prob_pos = (mask * log_prob).sum(1)  # 类内相似度
+        # compute mean of log-likelihood over positive
+        mean_log_prob_pos = (mask * log_prob).sum(1)  # 类内相似度
 
-            # loss
-            loss = - (self.temperature / self.base_temperature) * mean_log_prob_pos.mean()
+        # loss
+        loss = - (self.temperature / self.base_temperature) * mean_log_prob_pos.mean()
         return loss
 
 

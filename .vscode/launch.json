@@ -23,7 +23,7 @@
             ]
         },
         {
-            "name": "Python: Step 2",
+            "name": "HMTheft",
             "type": "debugpy",
             "request": "launch",
             "program": "${file}",
@@ -31,13 +31,12 @@
                 "--layer_type", "conv2d",
                 "-H", "stride", // option: kernel_size, stride, out_channels, padding
                 "-o", "4",
-                // "--resume",
-                "--device", "laptop", // "laptop" or "autodl"
+                "--resume",
                 "--test_domain", "299",
                 "--workers", "3",
-                // "--epochs", "15",
+                "--epochs", "10",
                 // "--batch_size", "128",
-                // "--max_epochs", "15",
+                "--max_epochs", "20",
 
                 // "--regression",
             ]

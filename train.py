@@ -152,12 +152,15 @@ if __name__ == '__main__':
     # model
     parser.add_argument('--head', default='mlp', type=str, help='mlp or linear head')
     parser.add_argument('--feat_dim', default = 128, type=int, help='feature dim')
-    parser.add_argument('--regression', action="store_true", help="是否为回归任务")
     parser.add_argument("-w", default=1, type=float, help="compLoss的权重")
     parser.add_argument("--temperature", default=0.1, type=float, help="温度系数tao")
     parser.add_argument('--proto_m', default= 0.95, type=float, help='momentum of prototype update')
 
     args = parser.parse_args()
+    if args.HyperParameter != "out_channels":
+        args.regression = False # 除了out_channels都不需要回归任务
+    else:
+        args.regression = True
     learning_rate = {"kernel_size":0.001, "stride":0.001, "out_channels":0.001, "padding":0.001}
     args.lr = learning_rate[args.HyperParameter]
     if torch.cuda.is_available():

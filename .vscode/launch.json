@@ -1,7 +1,7 @@
 {
     "configurations": [
         {
-            "name": "Python: Test 2",
+            "name": "Test",
             "type": "debugpy",
             "request": "launch",
             "program": "${file}",
@@ -39,19 +39,6 @@
                 "--max_epochs", "20",
 
                 // "--regression",
-            ]
-        },
-        {
-            "name": "Python: Step 1",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${file}",
-            "args": [
-                "--batch_size",
-                "85",
-                "--resume"
-                // "--workers", "3",
-
             ]
         }
     ]

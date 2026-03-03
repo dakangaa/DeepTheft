@@ -11,7 +11,7 @@ import numpy as np
 
 train_timer = utils.Timer()
 
-def train_step(epoch):
+def train_step(epoch, net, trainloader, criterion, optimizer, f1, device):
     net.train()
 
     train_timer.start()
@@ -51,7 +51,7 @@ def train_step(epoch):
 
 
 @torch.no_grad()
-def eval_step(epoch, arg, loader):
+def eval_step(epoch, arg, loader, net, criterion, f1, device):
     net.eval()
 
     metrics = np.zeros(5) # train_loss, accuracy, p, r, F1
@@ -79,7 +79,7 @@ def eval_step(epoch, arg, loader):
     return eval_loss, accuracy, F1
 
 
-def save_step(epoch, acc, f1, loss):
+def save_step(epoch, acc, f1, loss, net, criterion, optimizer, scheduler):
     global best_f1, best_loss
     if f1 > best_f1:
         print('saving...')
@@ -118,45 +118,19 @@ def save_step(epoch, acc, f1, loss):
         torch.save(last_checkpoint, path)
         print("此次epoch, 模型性能没有提高")
 
-def train():
-    for epoch in range(start_epoch, start_epoch+args.epochs):
+def train(args, net, trainloader, valloader, criterion, optimizer, scheduler, f1, device):
+    start_epoch = scheduler.last_epoch + 1      # 已经跑过的 epoch
+    max_epoch   = scheduler.T_max 
+    for epoch in range(start_epoch, max_epoch):
         print(f">>>>>>>>>>>>>>>>>> EPOCH {epoch} <<<<<<<<<<<<<<<<<<")
         print(f"lr:{scheduler.get_last_lr()}")
-        train_loss, train_acc = train_step(epoch)
-        val_loss, val_acc, val_f1 = eval_step(epoch, "VAL", valloader)
-        save_step(epoch, val_acc, val_f1, val_loss)
+        train_loss, train_acc = train_step(epoch, net, trainloader, criterion, optimizer, f1, device)
+        val_loss, val_acc, val_f1 = eval_step(epoch, "VAL", valloader, net, criterion, f1, device)
+        save_step(epoch, val_acc, val_f1, val_loss, net, criterion, optimizer, scheduler)
         scheduler.step()
         print("\n")
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='DeepTheft Training')
-    # training
-    parser.add_argument("--device", type=str, help="运行的机器")
-    parser.add_argument('--batch_size', default=128, type=int, help='mini-batch size')
-    parser.add_argument('--epochs', default=10, type=int, help='number of epochs to run')
-    parser.add_argument("--max_epochs", default=20, type=int, help="total num of epochs")
-    
-    # data
-    parser.add_argument('--path', default='results/MateModel_Hyper', type=str, help='save_path')
-    parser.add_argument('--data_path', default='dataset/new_dataset', type=str)
-    parser.add_argument('--workers', default=3, type=int, help='number of data loading workers')
-    parser.add_argument('--prefetch_factor', default=2, type=int, help='prefetch number of one loader worker')
-    
-    # experiment
-    parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
-    parser.add_argument("--layer_type", type=str, help="layer_type which hyperParameter is belong to")
-    parser.add_argument("--HyperParameter", "-H", default="kernel_size", type=str, help="训练的超参数")   # option: kernel_size, stride, out_channels
-    parser.add_argument("--test_domain", default="331", type=str, help="目标域")
-    parser.add_argument("--origin_domain_num", "-o", default=4, type=int, help="源域数量") # 源域在除了测试域的剩余域中顺序取
-
-    # model
-    parser.add_argument('--head', default='mlp', type=str, help='mlp or linear head')
-    parser.add_argument('--feat_dim', default = 128, type=int, help='feature dim')
-    parser.add_argument("-w", default=1, type=float, help="compLoss的权重")
-    parser.add_argument("--temperature", default=0.1, type=float, help="温度系数tao")
-    parser.add_argument('--proto_m', default= 0.95, type=float, help='momentum of prototype update')
-
-    args = parser.parse_args()
+def experiment(args):
     if args.HyperParameter != "out_channels":
         args.regression = False # 除了out_channels都不需要回归任务
     else:
@@ -194,6 +168,7 @@ if __name__ == '__main__':
             path = args.path + '/' + args.layer_type + "_" + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + args.test_domain + "_" + "train" + '_ckpt.pth'
         print("load path:" + path)
 
+        global best_f1, best_loss
         checkpoint = torch.load(path, weights_only=False)
         print('Loading...')
         net.load_state_dict(checkpoint['net'])
@@ -213,4 +188,46 @@ if __name__ == '__main__':
 
     f1 = utils.F1_score(num_classes=data.num_classes) # y_pred y_true
 
-    train()
+    train(args, net, trainloader, valloader, criterion, optimizer, scheduler, f1, device)
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='DeepTheft Training')
+    # training
+    parser.add_argument('--batch_size', default=128, type=int, help='mini-batch size')
+    parser.add_argument('--epochs', default=20, type=int, help='number of epochs to run')
+    parser.add_argument("--max_epochs", default=20, type=int, help="total num of epochs")
+    
+    # data
+    parser.add_argument('--path', default='results/MateModel_Hyper', type=str, help='save_path')
+    parser.add_argument('--data_path', default='dataset/new_dataset', type=str)
+    parser.add_argument('--workers', default=3, type=int, help='number of data loading workers')
+    parser.add_argument('--prefetch_factor', default=2, type=int, help='prefetch number of one loader worker')
+    
+    # experiment
+    parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
+    parser.add_argument("--layer_type", type=str, default="linear", help="layer_type which hyperParameter is belong to")
+    parser.add_argument("--HyperParameter", "-H", default="out_channels", type=str, help="训练的超参数")   # option: kernel_size, stride, out_channels
+    parser.add_argument("--test_domain", default="331", type=str, help="目标域")
+    parser.add_argument("--origin_domain_num", "-o", default=1, type=int, help="源域数量") # 源域在除了测试域的剩余域中顺序取
+
+    # model
+    parser.add_argument('--head', default='mlp', type=str, help='mlp or linear head')
+    parser.add_argument('--feat_dim', default = 128, type=int, help='feature dim')
+    parser.add_argument("-w", default=1, type=float, help="compLoss的权重")
+    parser.add_argument("--temperature", default=0.1, type=float, help="温度系数tao")
+    parser.add_argument('--proto_m', default= 0.95, type=float, help='momentum of prototype update')
+
+    args = parser.parse_args()
+    args.resume = False
+    
+    args.layer_type = "linear"
+    args.HyperParameter = "out_channels"
+    experiment(args)
+
+    args.layer_type = "max_pool2d"
+    args.HyperParameter = "kernel_size"
+    experiment(args)
+
+    args.layer_type = "max_pool2d"
+    args.HyperParameter = "padding"
+    experiment(args)

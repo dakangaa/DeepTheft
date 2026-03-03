@@ -113,30 +113,33 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    accs = list()
-    f1s = list()
-    test_domains = ["192", "224", "299", "331"]
-    for td in test_domains:
-        args.test_domain = td
-        acc,f1 = test(args)
-        accs.append(acc)
-        f1s.append(f1)
+    exp_cmb= [("conv2d", "kernel_size")]
 
-    print("acc:" + str(accs))
-    print("f1:" + str(f1s))
+    for args.layer_type, args.HyperParameter in exp_cmb:
+        accs = list()
+        f1s = list()
+        test_domains = ["192", "224", "299", "331"]
+        for td in test_domains:
+            args.test_domain = td
+            acc,f1 = test(args)
+            accs.append(acc)
+            f1s.append(f1)
 
-    # 保存到 Excel
-    os.makedirs("results", exist_ok=True)
-    df = pd.DataFrame({'test_domain': test_domains, 'acc': accs, 'f1': f1s})
-    excel_path = 'results/similarity_in_input_sizes.xlsx'
-    try:
-        if os.path.exists(excel_path):
-            with pd.ExcelWriter(excel_path, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
-                df.to_excel(writer, index=False, sheet_name=args.HyperParameter)
-        else:
-            with pd.ExcelWriter(excel_path, engine='openpyxl', mode='w') as writer:
-                df.to_excel(writer, index=False, sheet_name=args.HyperParameter)
-        print(f"Saved results to {excel_path}")
-    except Exception as e:
-        print(f"Failed to write Excel file: {e}")
+        print("acc:" + str(accs))
+        print("f1:" + str(f1s))
+
+        # 保存到 Excel
+        os.makedirs("results", exist_ok=True)
+        df = pd.DataFrame({'test_domain': test_domains, 'acc': accs, 'f1': f1s})
+        excel_path = 'results/similarity_in_input_sizes.xlsx'
+        try:
+            if os.path.exists(excel_path):
+                with pd.ExcelWriter(excel_path, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
+                    df.to_excel(writer, index=False, sheet_name=args.layer_type + "_" + args.HyperParameter)
+            else:
+                with pd.ExcelWriter(excel_path, engine='openpyxl', mode='w') as writer:
+                    df.to_excel(writer, index=False, sheet_name=args.layer_type + "_" + args.HyperParameter)
+            print(f"Saved results to {excel_path}")
+        except Exception as e:
+            print(f"Failed to write Excel file: {e}")
     

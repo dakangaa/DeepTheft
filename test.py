@@ -97,8 +97,8 @@ if __name__ == '__main__':
     # test
     parser.add_argument("--layer_type", type=str, default="conv2d", help="layer_type which hyperParameter is belong to")
     parser.add_argument("--HyperParameter", "-H", default="stride", type=str, help="测试的超参数")   # option: kernel_size, stride, out_channels
-    parser.add_argument("--origin_domain_num", "-o", default=1, type=int, help="训练的源域数量")
-    # parser.add_argument("--test_domain", default="331", type=str, help="目标域")
+    parser.add_argument("--origin_domain_num", "-o", default=4, type=int, help="训练的源域数量")
+    parser.add_argument("--test_domain", default="331", type=str, help="目标域")
 
     # data
     parser.add_argument('--path', default='results/MateModel_Hyper', type=str, help='load_path')
@@ -112,34 +112,42 @@ if __name__ == '__main__':
     parser.add_argument('--feat_dim', default = 128, type=int, help='feature dim')
 
     args = parser.parse_args()
+    ws = [0.1, 0.5, 1.0, 2.0, 5.0]
+    proto_ms = [0.5, 0.8, 0.9, 0.95, 0.99]
+    ts = [0.01, 0.05, 0.1, 0.2, 0.5]
 
-    exp_cmb= [("conv2d", "kernel_size")]
-
-    for args.layer_type, args.HyperParameter in exp_cmb:
-        accs = list()
+    test_domains = ["160", "192", "224", "299", "331"]
+    table = {"test_domain": test_domains}
+    mean_row = {
+        'test_domain': 'mean'
+    }
+    model_dir = "results/ts"
+    for t in ts:
+        args.path = os.path.join(model_dir, f"{t:.2f}")
+        # accs = list()
         f1s = list()
-        test_domains = ["192", "224", "299", "331"]
-        for td in test_domains:
-            args.test_domain = td
-            acc,f1 = test(args)
-            accs.append(acc)
-            f1s.append(f1)
+        for args.test_domain in test_domains:
+            _1, _2 = test(args)
+            # accs.append(_1)
+            f1s.append(_2)
+        table[f"t={t:.2f}"] = f1s
+        mean_row[f"t={t:.2f}"] = np.mean(f1s)
 
-        print("acc:" + str(accs))
-        print("f1:" + str(f1s))
 
-        # 保存到 Excel
-        os.makedirs("results", exist_ok=True)
-        df = pd.DataFrame({'test_domain': test_domains, 'acc': accs, 'f1': f1s})
-        excel_path = 'results/similarity_in_input_sizes.xlsx'
-        try:
-            if os.path.exists(excel_path):
-                with pd.ExcelWriter(excel_path, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
-                    df.to_excel(writer, index=False, sheet_name=args.layer_type + "_" + args.HyperParameter)
-            else:
-                with pd.ExcelWriter(excel_path, engine='openpyxl', mode='w') as writer:
-                    df.to_excel(writer, index=False, sheet_name=args.layer_type + "_" + args.HyperParameter)
-            print(f"Saved results to {excel_path}")
-        except Exception as e:
-            print(f"Failed to write Excel file: {e}")
-    
+
+
+    # 保存到 Excel
+    os.makedirs("results", exist_ok=True)
+    df = pd.DataFrame(table)
+    df.loc[len(df)] = mean_row
+    excel_path = 'results/parameter_sensitivity.xlsx'
+    try:
+        if os.path.exists(excel_path):
+            with pd.ExcelWriter(excel_path, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
+                df.to_excel(writer, index=False, sheet_name="t")
+        else:
+            with pd.ExcelWriter(excel_path, engine='openpyxl', mode='w') as writer:
+                df.to_excel(writer, index=False, sheet_name="t")
+        print(f"Saved results to {excel_path}")
+    except Exception as e:
+        print(f"Failed to write Excel file: {e}")

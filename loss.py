@@ -28,41 +28,6 @@ def l2_norm(input):
     return output
 
 
-class Proxy_Anchor(torch.nn.Module):
-    def __init__(self, nb_classes, sz_embed, mrg = 0.1, alpha = 32):
-        torch.nn.Module.__init__(self)
-        # Proxy Anchor Initialization
-        self.proxies = torch.nn.Parameter(torch.randn(nb_classes, sz_embed).cuda())
-        nn.init.kaiming_normal_(self.proxies, mode='fan_out')
-
-        self.nb_classes = nb_classes
-        self.sz_embed = sz_embed
-        self.mrg = mrg
-        self.alpha = alpha
-
-    def forward(self, X, T):
-        P = self.proxies
-
-        cos = F.linear(l2_norm(X), l2_norm(P))  # Calcluate cosine similarity
-        P_one_hot = binarize(T = T, nb_classes = self.nb_classes)
-        N_one_hot = 1 - P_one_hot
-
-        pos_exp = torch.exp(-self.alpha * (cos - self.mrg))
-        neg_exp = torch.exp(self.alpha * (cos + self.mrg))
-
-        with_pos_proxies = torch.nonzero(P_one_hot.sum(dim = 0) != 0).squeeze(dim = 1)   # The set of positive proxies of data in the batch
-        num_valid_proxies = len(with_pos_proxies)   # The number of positive proxies
-
-        P_sim_sum = torch.where(P_one_hot == 1, pos_exp, torch.zeros_like(pos_exp)).sum(dim=0)
-        N_sim_sum = torch.where(N_one_hot == 1, neg_exp, torch.zeros_like(neg_exp)).sum(dim=0)
-
-        pos_term = torch.log(1 + P_sim_sum).sum() / num_valid_proxies
-        neg_term = torch.log(1 + N_sim_sum).sum() / self.nb_classes
-        loss = pos_term + neg_term
-
-        return loss
-
-
 class CompLoss(nn.Module):
     '''
     Compactness Loss with class-conditional prototypes
@@ -149,65 +114,8 @@ class CompLoss(nn.Module):
         return loss
 
 
-class CompNGLoss(nn.Module):
-    '''
-    Compactness Loss with class-conditional prototypes (without negative pairs)
-    '''
-    def __init__(self, args, temperature=0.1, base_temperature=0.1):
-        super(CompNGLoss, self).__init__()
-        self.args = args
-        self.temperature = temperature
-        self.base_temperature = base_temperature
 
-    def forward(self, features, prototypes, labels):
-        prototypes = F.normalize(prototypes, dim=1)
-        proxy_labels = torch.arange(0, self.args.num_classes).cuda()
-        labels = labels.contiguous().view(-1, 1)
-        mask = torch.eq(labels, proxy_labels.T).float().cuda() #bz, cls
-        # compute logits
-        feat_dot_prototype = torch.div(
-            torch.matmul(features, prototypes.T),
-            self.temperature)
 
-        # compute mean of log-likelihood over positive
-        mean_log_prob_pos = (mask * feat_dot_prototype).sum(1)
-        # loss
-        loss = - (self.temperature / self.base_temperature) * mean_log_prob_pos.mean()
-        return loss
-
-class DisLPLoss(nn.Module):
-    '''
-    Dispersion Loss with learnable prototypes
-    '''
-    def __init__(self, args, model, loader, temperature= 0.1, base_temperature=0.1):
-        super(DisLPLoss, self).__init__()
-        self.args = args
-        self.temperature = temperature
-        self.base_temperature = base_temperature
-        self.model = model
-        self.loader = loader
-        self.init_class_prototypes()
-
-    def compute(self):
-        num_cls = self.args.num_classes
-        # l2-normalize the prototypes if not normalized
-        prototypes = F.normalize(self.prototypes, dim=1)
-
-        labels = torch.arange(0, num_cls).cuda()
-        labels = labels.contiguous().view(-1, 1)
-
-        mask = (1- torch.eq(labels, labels.T).float()).cuda()
-
-        logits = torch.div(
-            torch.matmul(prototypes, prototypes.T),
-            self.temperature)
-
-        mean_prob_neg = torch.log((mask * torch.exp(logits)).sum(1) / mask.sum(1))
-        mean_prob_neg = mean_prob_neg[~torch.isnan(mean_prob_neg)]
-        # loss
-        loss = self.temperature / self.base_temperature * mean_prob_neg.mean()
-
-        return loss
 
     def init_class_prototypes(self):
         """Initialize class prototypes"""
@@ -266,8 +174,22 @@ class DisLoss(nn.Module):
             torch.matmul(prototypes, prototypes.T),
             self.temperature) #　（Ｎ，　Ｎ）
 
-        mean_prob_neg = torch.log((mask * torch.exp(logits)).sum(1) / mask.sum(1))
-        # DEBUG:
+        # mean_prob_neg = torch.log((mask * torch.exp(logits)).sum(1) / mask.sum(1) + 1e-8)
+        # 防止数值不稳定：
+        # 1. 处理 Mask：将忽略的位设置为极小值，防止其贡献到指数和中
+        # 使用 -1e10 代替 -inf 可以避免某些梯度计算的不稳定性
+        masked_logits = logits.masked_fill(mask == 0, -1e10)
+
+        # 2. 使用 torch.logsumexp 进行数值稳定的计算
+        # 这等价于 log(sum(exp(masked_logits)))，但内部自动减去了最大值防止溢出
+        log_sum_exp = torch.logsumexp(masked_logits, dim=1)
+
+        # 3. 处理平均值（将除法变为对数空间的减法）
+        # log(sum/n) = log(sum) - log(n)
+        # 这里的 mask.sum(1) 即为您公式中的分母 N
+        mean_prob_neg = log_sum_exp - torch.log(mask.sum(1) + 1e-8)
+
+        # DEBUG:输出
         if torch.isnan(mean_prob_neg).sum().item() > 0:
             print(f"nan:{torch.isnan(mean_prob_neg).sum().item()}")
 
@@ -327,12 +249,12 @@ class RegressionLoss(nn.Module):
             loss = ((feat_dot_prototype - r) ** 2).mean()
             pred = (feat_dot_prototype > 0).long()
         return loss, pred
-class Loss(nn.Module):
+class ClassificationLoss(nn.Module):
     """
     DisLoss and CompLoss
     """
     def __init__(self, args, net, loader):
-        super(Loss, self).__init__()
+        super(ClassificationLoss, self).__init__()
         self.disLoss = DisLoss(args, net, loader, temperature=args.temperature)
         self.comLoss = CompLoss(args, temperature=args.temperature)
         self.w = args.w

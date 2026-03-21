@@ -7,10 +7,11 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "args": [
-                "--layer_type", "max_pool2d",
-                "--device", "laptop",  // "laptop" or "autodl"
-                "--mode", "T"
+                // "--layer_type", "max_pool2d",
+                // "--device", "laptop",  // "laptop" or "autodl"
+                // "--mode", "T"
                 // "--regression"
+                "--path","results/proto_ms/0.99"
             ]
         },
         {

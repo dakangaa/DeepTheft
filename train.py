@@ -18,10 +18,6 @@ def train_step(epoch, net, trainloader, criterion, optimizer, f1, device):
     metrics = np.zeros(5) # train_loss, accuracy, p, r, F1
     f1.reset()
     for batch_idx, data in enumerate(trainloader):
-        # if args.use_domain:
-        #     assert len(data) == 3
-        #     inputs, targets, domain = data[0].to(device).float(), data[1].to(device).long(), data[2].to(device).long()
-        # else:
         assert len(data) == 2
         inputs, targets = data[0].to(device).float(), data[1].to(device).long()
         domain = None
@@ -35,7 +31,7 @@ def train_step(epoch, net, trainloader, criterion, optimizer, f1, device):
         optimizer.step()
 
         metrics[0] = loss.item()
-        metrics[1:] = f1(pred, targets)#accuracy, p, r, F1
+        metrics[1:] = f1(pred, targets)
 
         if (batch_idx+1) % 1000 == 0:
             elapsed = train_timer.stop()
@@ -54,13 +50,9 @@ def train_step(epoch, net, trainloader, criterion, optimizer, f1, device):
 def eval_step(epoch, arg, loader, net, criterion, f1, device):
     net.eval()
 
-    metrics = np.zeros(5) # train_loss, accuracy, p, r, F1
+    metrics = np.zeros(5)
     f1.reset()
     for batch_idx, data in enumerate(loader):
-        # if args.use_domain:
-        #     assert len(data) == 3
-        #     inputs, targets, domain = data[0].to(device).float(), data[1].to(device).long(), data[2].to(device).long()
-        # else:
         assert len(data) == 2
         inputs, targets = data[0].to(device).float(), data[1].to(device).long()
         domain = None
@@ -71,7 +63,7 @@ def eval_step(epoch, arg, loader, net, criterion, f1, device):
             loss, pred, _, _ = criterion(net, inputs, targets, domain)
 
         metrics[0] = loss.item()
-        metrics[1:] = f1(pred, targets)#accuracy, p, r, F1
+        metrics[1:] = f1(pred, targets)
 
     eval_loss, accuracy, p, r, F1 = metrics[:]
     logs = '{} - Epoch: [{}]\t Loss: {:.3f}\t Acc: {:.3f}\t P: {:.3f}\t R: {:.3f}\t F1: {:.3f}\t'
@@ -119,7 +111,7 @@ def save_step(epoch, acc, f1, loss, net, criterion, optimizer, scheduler):
         print("此次epoch, 模型性能没有提高")
 
 def train(args, net, trainloader, valloader, criterion, optimizer, scheduler, f1, device):
-    start_epoch = scheduler.last_epoch + 1      # 已经跑过的 epoch
+    start_epoch = scheduler.last_epoch + 1
     max_epoch   = scheduler.T_max
     for epoch in range(start_epoch, min(start_epoch + args.epochs, max_epoch)):
         print(f">>>>>>>>>>>>>>>>>> EPOCH {epoch} <<<<<<<<<<<<<<<<<<")
@@ -133,17 +125,14 @@ def train(args, net, trainloader, valloader, criterion, optimizer, scheduler, f1
 def experiment(args):
     print("--------------------- EXP START ---------------------")
     if args.HyperParameter != "out_channels":
-        args.regression = False # 除了out_channels都不需要回归任务
+        args.regression = False
     else:
         args.regression = True
-    # learning_rate = {"kernel_size":0.001, "stride":0.001, "out_channels":0.001, "padding":0.001}
-    # args.lr = learning_rate[args.HyperParameter]
     if torch.cuda.is_available():
         device = torch.device('cuda')
         cudnn.benchmark = True
     else:
         device = torch.device('cpu')
-    # 设定源域
     input_size = ["160", "192", "224", "299", "331"]
     input_size = [i for i in input_size if i != args.test_domain][0 : args.origin_domain_num]
 
@@ -159,11 +148,8 @@ def experiment(args):
 
     optimizer = torch.optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.max_epochs)
-
-    # 模型重载
     if args.resume:
         if args.regression:
-            # 重载预训练
             path = args.path + '/' + args.layer_type + "_" + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + args.test_domain + "_" + "regression" + '_ckpt.pth'
         else:
             path = args.path + '/' + args.layer_type + "_" + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + args.test_domain + "_" + "classification" + '_ckpt.pth'
@@ -178,7 +164,7 @@ def experiment(args):
         best_f1 = checkpoint["f1"]
         criterion.load_state_dict(checkpoint["loss"])
         optimizer.load_state_dict(checkpoint['optimizer'])
-        scheduler.load_state_dict(checkpoint['scheduler']) # 从上一次的最佳checkpoint开始
+        scheduler.load_state_dict(checkpoint['scheduler'])
         if scheduler.T_max != args.max_epochs:
             print(f"WARNING: loaded scheduler's max_epoch {scheduler.T_max} is different from args.max_epochs {args.max_epochs}, using args.max_epochs")
             scheduler.T_max = args.max_epochs
@@ -190,7 +176,7 @@ def experiment(args):
         best_f1 = 0
         best_loss = [float("inf")]
 
-    f1 = utils.F1_score(num_classes=data.num_classes) # y_pred y_true
+    f1 = utils.F1_score(num_classes=data.num_classes)
 
     train(args, net, trainloader, valloader, criterion, optimizer, scheduler, f1, device)
 
@@ -212,15 +198,15 @@ if __name__ == '__main__':
     # experiment
     parser.add_argument('--resume', '-r', action='store_true', help='whether to resume from checkpoint')
     parser.add_argument("--layer_type", type=str, default="conv2d", help="layer_type which hyperParameter is belong to, should be one of conv2d, max_pool2d, linear")
-    parser.add_argument("--HyperParameter", "-H", default="out_channels", type=str, help="hyperparameter to predict")   # option: kernel_size, stride, out_channels
+    parser.add_argument("--HyperParameter", "-H", default="out_channels", type=str, help="hyperparameter to predict")
     parser.add_argument("--test_domain", default="331", type=str, help="target domain for testing, should be one of 160, 192, 224, 299, 331")
-    parser.add_argument("--origin_domain_num", "-o", default=4, type=int, help="number of origin domains") # 源域在除了测试域的剩余域中顺序取
+    parser.add_argument("--origin_domain_num", "-o", default=4, type=int, help="number of origin domains")
 
     # model
     parser.add_argument('--feat_dim', default = 128, type=int, help='feature dim')
     parser.add_argument("-w", default=1.0, type=float, help="weight of loss_cla")
     parser.add_argument("--temperature", default=0.1, type=float, help="temperature tau")
-    parser.add_argument('--alpha', default= 0.95, type=float, help='momentum of prototype update') # 论文中的alpha
+    parser.add_argument('--alpha', default= 0.95, type=float, help='momentum of prototype update')
 
     args = parser.parse_args()
     args.resume = False

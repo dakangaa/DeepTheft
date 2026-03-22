@@ -1,6 +1,6 @@
 """
 
-This script shreds and preprocesses the data to the same length to speed up data loading, ultimately generating an h5 file.
+This script shreds and preprocesses the data to the same length to speed up data loading, ultimately generating h5 files.
 """
 import h5py
 import numpy as np
@@ -35,7 +35,6 @@ class Resize(torch.nn.Module):
         return out
 
 class CopyPad(torch.nn.Module):
-    # 裁剪/填充处理
     def __init__(self, length):
         super().__init__()
         self.length = length
@@ -46,7 +45,6 @@ class CopyPad(torch.nn.Module):
         return out
 
 def signal_cut(layer_type, domain):
-    # 将整段信号逐层剪切
     data_x, data_y = [], []
     trace_num = []
     datah5 = h5py.File(r'./dataset/data.h5', 'r')
@@ -57,9 +55,7 @@ def signal_cut(layer_type, domain):
             label = datah5["data"][k][:, -1]
             pos = datah5['position'][k][:]
             hp = hph5[k][:]
-            # 筛选hp
             if layer_type == "linear":
-                # 大部分linear层的采样点数都为0
                 hp = hp[hp[:, -2] == -1]
                 hp = hp[hp[:, -1] == -1]
             elif layer_type == "conv2d":
@@ -84,15 +80,14 @@ def signal_cut(layer_type, domain):
     return data_x, data_y
 
 def signal_transform(signal_segments, layer_type):
-    # 将信号段预处理为1024长度 + 转置
     if layer_type == "conv2d":
         transform = transforms.Compose([
-            Normalization(), # 归一化
-            CopyPad(1024), # 子采样缩放到1024长度
+            Normalization(),
+            CopyPad(1024),
         ])
     else:
         transform = transforms.Compose([
-            Resize(1024), # 子采样缩放到1024长度
+            Resize(1024),
         ])
     return [transform(segment) for segment in signal_segments]
 
@@ -106,7 +101,6 @@ def preprocess(layer_type):
         signal_trans = signal_transform(signals, layer_type)
         signal_stack = np.stack(signal_trans).astype(np.float32)
         hp_stack = np.stack(hps).astype(np.float32)
-        # --- debug: 打印新生成的数据 shape/dtype/字节数，并计算原始 data.h5 对应 domain 的总字节数 ---
         domain_str = index_domain_dict[dom]
         print(domain_str, 'signal_stack', signal_stack.shape, signal_stack.dtype, 'bytes', signal_stack.size * signal_stack.itemsize)
         orig_bytes = 0
@@ -123,37 +117,25 @@ def preprocess(layer_type):
     return signal_domains, hp_domains
 
 if __name__ == "__main__":
-    # parser = argparse.ArgumentParser(description='create dataset')
-    # parser.add_argument("--layer_type", type=str)
-    # args = parser.parse_args()
-    # layer_type = args.layer_type
 
     layer_types = ["conv2d", "linear", "max_pool2d"]
     for layer_type in layer_types:
-
-        # 调用 preprocess 函数生成 data_x 和 data_y
         trace_domains, hp_domains = preprocess(layer_type)
-        # 将 data_x 和 data_y 写入新的 HDF5 文件
         output_file_path = rf'./dataset/new_dataset/{layer_type}.h5'
         with h5py.File(output_file_path, 'w') as f:
-            # 创建 trace 数据集
             trace_group = f.create_group('trace')
             for i in range(5):
                 domain_str = index_domain_dict[i]
                 trace_group.create_dataset(
                     domain_str,
                     data=trace_domains[domain_str].astype(np.float32),
-                    # compression='gzip', compression_opts=4
                 )
-
-            # 创建 hp 数据集
             hp_group = f.create_group('hp')
             for i in range(5):
                 domain_str = index_domain_dict[i]
                 hp_group.create_dataset(
                     domain_str,
                     data=hp_domains[domain_str].astype(np.float32),
-                    # compression='gzip', compression_opts=4
                 )
 
         print(layer_type, "OK")

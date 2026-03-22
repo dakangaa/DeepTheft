@@ -28,7 +28,6 @@ class LossSim(nn.Module):
     类内变异？
     '''
     def __init__(self, args, temperature=0.1, base_temperature=0.1):
-        # use_domain : 是否额外使用一个loss项，使同域不同类的样本分离
         super(LossSim, self).__init__()
         self.args = args
         self.temperature = temperature
@@ -37,93 +36,34 @@ class LossSim(nn.Module):
     def forward(self, features, prototypes, labels, domains):
 
         prototypes = F.normalize(prototypes, dim=1)
-        proxy_labels = torch.arange(0, self.args.num_classes).cuda() #cls
-        labels = labels.contiguous().view(-1, 1)# bz, 1
-        mask = torch.eq(labels, proxy_labels).float().cuda() #(bz, cls) 对应类别标签的mask
-        # mask = torch.eq(labels, proxy_labels.T).float().cuda() #bz, cls
-
-        # compute logits
+        proxy_labels = torch.arange(0, self.args.num_classes).cuda()
+        labels = labels.contiguous().view(-1, 1)
+        mask = torch.eq(labels, proxy_labels).float().cuda()
         feat_dot_prototype = torch.div(
             torch.matmul(features, prototypes.T),
-            self.temperature) # z*mu/tao : (bz, cls)
-
-        # if self.use_domain:
-            # # 如果使用域信息，获取域标签并调整其形状
-            # domains = domains.contiguous().view(-1, 1)
-
-            # # 计算特征之间的相似度
-            # feat_dot_feat = torch.div(
-                # torch.matmul(features, features.T),
-                # self.temperature
-            # )  # (batch_size, batch_size)
-
-            # # 创建标签掩码，判断样本是否属于相同类别
-            # label_mask = torch.eq(labels, labels.T).float().cuda()  # (batch_size, batch_size)
-            # neg_label_mask = 1 - label_mask  # 取反，表示不同类别的样本
-            # # 创建域掩码，判断样本是否来自相同域
-            # domain_mask = torch.eq(domains, domains.T).float().cuda()  # (batch_size, batch_size)
-            # neg_label_pos_domain_mask = neg_label_mask * domain_mask  # 同域不同类样本mask
-
-            # # 为了数值稳定性，计算每个样本最相似的原型和特征
-            # logits_max, _ = torch.max(feat_dot_prototype, dim=1, keepdim=True)  # 每个样本的最大类别相似度
-            # feat_logits_max, _ = torch.max(feat_dot_feat, dim=1, keepdim=True)  # 每个样本的最大相似度（自己与自己）
-
-            # # 通过最大值进行稳定化
-            # logits_max = torch.max(feat_logits_max, feat_logits_max)  # 这一步似乎没有意义，可以省略
-
-            # # 使用最大值进行稳定化，避免数值过大
-            # prot_logits = feat_dot_prototype - logits_max.detach()  # 稳定化后的原型对比得分
-            # feat_logits = feat_dot_feat - logits_max.detach()  # 稳定化后的特征对比得分
-
-            # # 计算每个原型的指数分布（softmax-like）
-            # exp_prot_logits = torch.exp(prot_logits)
-            # exp_feat_logits = torch.exp(feat_logits)
-
-            # # 正样本部分：同类别样本的对比损失 (分子部分)
-            # pos_part = (prot_logits * mask).sum(1, keepdim=True)  # (batch_size, 1)
-
-            # # 计算负样本部分：所有类别的对比损失 （分母部分）
-            # prot_neg_pairs = exp_prot_logits.sum(1, keepdim=True)  # 所有原型的对比得分总和
-            # same_domain_neg_pairs = (neg_label_pos_domain_mask * exp_feat_logits).sum(1, keepdim=True)  # 同域且不同标签的对比得分
-            # neg_part = torch.log(prot_neg_pairs + same_domain_neg_pairs + 1e-8)  # (batch_size, 1)
-
-            # # 计算最终的对比损失
-            # loss = - (self.temperature / self.base_temperature) * (pos_part - neg_part).mean()  # 对比损失平均值
-
-        # else:
-        # 不使用域信息
-        # for numerical stability
+            self.temperature)
         logits_max, _ = torch.max(feat_dot_prototype, dim=1, keepdim=True)
         logits = feat_dot_prototype - logits_max.detach()
-
-        # compute log_prob
         exp_logits = torch.exp(logits)
-        log_prob = logits - torch.log(exp_logits.sum(1, keepdim=True)) # log(exp(logits)) - log(exp(logits).sum())
-
-        # compute mean of log-likelihood over positive
-        mean_log_prob_pos = (mask * log_prob).sum(1)  # 类内相似度
-
-        # loss
+        log_prob = logits - torch.log(exp_logits.sum(1, keepdim=True))
+        mean_log_prob_pos = (mask * log_prob).sum(1)
         loss = - (self.temperature / self.base_temperature) * mean_log_prob_pos.mean()
         return loss
 
     def init_class_prototypes(self):
-        """Initialize class prototypes"""
         self.model.eval()
         start = time.time()
         prototype_counts = [0]*self.args.num_classes
         with torch.no_grad():
             prototypes = torch.zeros(self.args.num_classes,self.args.feat_dim).cuda()
-            #for input, target in self.loader:
             for i, (input, target, domain) in enumerate(self.loader):
                 input, target = input.cuda().float(), target.cuda().long()
-                features = self.model(input) # extract normalized features
+                features = self.model(input)
                 for j, feature in enumerate(features):
                     prototypes[target[j].item()] += feature
                     prototype_counts[target[j].item()] += 1
             for cls in range(self.args.num_classes):
                 prototypes[cls] /=  prototype_counts[cls]
-            # measure elapsed time
             duration = time.time() - start
             print(f'Time to initialize prototypes: {duration:.3f}')
             prototypes = F.normalize(prototypes, dim=1)
@@ -145,53 +85,31 @@ class LossSep(nn.Module):
         self.init_class_prototypes()
 
     def forward(self, features, labels):
-        """
-        Update class prototypes and compute loss_sep
-        """
         prototypes = self.prototypes
         num_cls = self.args.num_classes
-        # 更新类原型
         for j in range(len(features)):
             prototypes[labels[j].item()] = F.normalize(prototypes[labels[j].item()] *self.args.alpha
                                                        + features[j]*(1-self.args.alpha), dim=0)
         self.prototypes = prototypes.detach()
-        labels = torch.arange(0, num_cls).cuda() # 0 ~ (num_cls - 1)
-        labels = labels.contiguous().view(-1, 1) # (num_cls, 1)
+        labels = torch.arange(0, num_cls).cuda()
+        labels = labels.contiguous().view(-1, 1)
 
-        mask = (1- torch.eq(labels, labels.T).float()).cuda() # 对角线上的项都为0:排除自相似项
+        mask = (1- torch.eq(labels, labels.T).float()).cuda()
 
         logits = torch.div(
             torch.matmul(prototypes, prototypes.T),
-            self.temperature) #　（Ｎ，　Ｎ）
-
-        # mean_prob_neg = torch.log((mask * torch.exp(logits)).sum(1) / mask.sum(1) + 1e-8)
-        # 防止数值不稳定：
-        # 1. 处理 Mask：将忽略的位设置为极小值，防止其贡献到指数和中
-        # 使用 -1e10 代替 -inf 可以避免某些梯度计算的不稳定性
+            self.temperature)
         masked_logits = logits.masked_fill(mask == 0, -1e10)
-
-        # 2. 使用 torch.logsumexp 进行数值稳定的计算
-        # 这等价于 log(sum(exp(masked_logits)))，但内部自动减去了最大值防止溢出
         log_sum_exp = torch.logsumexp(masked_logits, dim=1)
-
-        # 3. 处理平均值（将除法变为对数空间的减法）
-        # log(sum/n) = log(sum) - log(n)
-        # 这里的 mask.sum(1) 即为您公式中的分母 N
         mean_prob_neg = log_sum_exp - torch.log(mask.sum(1) + 1e-8)
-
-        # DEBUG:输出
         if torch.isnan(mean_prob_neg).sum().item() > 0:
             print(f"nan:{torch.isnan(mean_prob_neg).sum().item()}")
 
-        mean_prob_neg = mean_prob_neg[~torch.isnan(mean_prob_neg)] # 类间相似度
+        mean_prob_neg = mean_prob_neg[~torch.isnan(mean_prob_neg)]
         loss = self.temperature / self.base_temperature * mean_prob_neg.mean()
         return loss
 
     def init_class_prototypes(self):
-        """
-        Initialize class prototypes
-        by averaging the features of samples from pretrained model and normalizing
-        """
         self.model.eval()
         start = time.time()
         prototype_counts = [0]*self.args.num_classes
@@ -208,7 +126,6 @@ class LossSep(nn.Module):
             for cls in range(self.args.num_classes):
                 assert prototype_counts[cls] > 0
                 prototypes[cls] /=  prototype_counts[cls]
-            # measure elapsed time
             duration = time.time() - start
             print(f'Time to initialize prototypes: {duration:.3f}')
             prototypes = F.normalize(prototypes, dim=1)
@@ -223,26 +140,21 @@ class LossReg(nn.Module):
 
     def forward(self, features, targets):
         if self.layer_type == "conv2d":
-            # targets: 0 ~ 5
-            # 映射到(0,6)的空间中
             lower = 0
             upper = 6
-            feat_dot_prototype = torch.matmul(features, self.P_upper) # -1 ~ 1
+            feat_dot_prototype = torch.matmul(features, self.P_upper)
             pred = torch.floor((feat_dot_prototype + 1) / 2 * (upper - lower)).long()
-            r = (targets + 0.5) / (upper - lower) * 2 - 1 # int{0...5} --> {0.5...5.5} --> (-1,1)
+            r = (targets + 0.5) / (upper - lower) * 2 - 1
             loss = ((feat_dot_prototype - r) ** 2).mean()
         elif self.layer_type == "linear":
-            lower = 0 #1000
-            upper = 1 #4096
-            feat_dot_prototype = torch.matmul(features, self.P_upper) # -1 ~ 1
-            r = (targets - lower)/ (upper - lower) * 2 - 1 # -1 ~ 1
+            lower = 0
+            upper = 1
+            feat_dot_prototype = torch.matmul(features, self.P_upper)
+            r = (targets - lower)/ (upper - lower) * 2 - 1
             loss = ((feat_dot_prototype - r) ** 2).mean()
             pred = (feat_dot_prototype > 0).long()
         return loss, pred
 class LossCla(nn.Module):
-    """
-    DisLoss and CompLoss
-    """
     def __init__(self, args, net, loader):
         super(LossCla, self).__init__()
         self.disLoss = LossSep(args, net, loader, temperature=args.temperature)
@@ -253,8 +165,6 @@ class LossCla(nn.Module):
     def forward(self, net, input, target, domain=None):
         features = net(input)
         feat_dot_prototype = torch.div(torch.matmul(features, self.disLoss.prototypes.T), self.temperature)
-
-        # for numerical stability
         logits_max, _ = torch.max(feat_dot_prototype, dim=1, keepdim=True)
         logits = feat_dot_prototype - logits_max.detach()
 

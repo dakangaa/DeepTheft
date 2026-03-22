@@ -1,9 +1,3 @@
-
-"""
-Aapted from SupCon: https://github.com/HobbitLong/SupContrast/
-"""
-from __future__ import print_function
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -28,14 +22,14 @@ def l2_norm(input):
     return output
 
 
-class CompLoss(nn.Module):
+class LossSim(nn.Module):
     '''
     Compactness Loss with class-conditional prototypes
     类内变异？
     '''
     def __init__(self, args, temperature=0.1, base_temperature=0.1):
         # use_domain : 是否额外使用一个loss项，使同域不同类的样本分离
-        super(CompLoss, self).__init__()
+        super(LossSim, self).__init__()
         self.args = args
         self.temperature = temperature
         self.base_temperature = base_temperature
@@ -113,10 +107,6 @@ class CompLoss(nn.Module):
         loss = - (self.temperature / self.base_temperature) * mean_log_prob_pos.mean()
         return loss
 
-
-
-
-
     def init_class_prototypes(self):
         """Initialize class prototypes"""
         self.model.eval()
@@ -139,13 +129,13 @@ class CompLoss(nn.Module):
             prototypes = F.normalize(prototypes, dim=1)
             self.prototypes = torch.nn.Parameter(prototypes)
 
-class DisLoss(nn.Module):
+class LossSep(nn.Module):
     '''
     Dispersion Loss with EMA prototypes
     类间分离
     '''
     def __init__(self, args, model, loader, temperature=0.1, base_temperature=0.1):
-        super(DisLoss, self).__init__()
+        super(LossSep, self).__init__()
         self.args = args
         self.temperature = temperature
         self.base_temperature = base_temperature
@@ -162,8 +152,8 @@ class DisLoss(nn.Module):
         num_cls = self.args.num_classes
         # 更新类原型
         for j in range(len(features)):
-            prototypes[labels[j].item()] = F.normalize(prototypes[labels[j].item()] *self.args.proto_m
-                                                       + features[j]*(1-self.args.proto_m), dim=0)
+            prototypes[labels[j].item()] = F.normalize(prototypes[labels[j].item()] *self.args.alpha
+                                                       + features[j]*(1-self.args.alpha), dim=0)
         self.prototypes = prototypes.detach()
         labels = torch.arange(0, num_cls).cuda() # 0 ~ (num_cls - 1)
         labels = labels.contiguous().view(-1, 1) # (num_cls, 1)
@@ -224,9 +214,9 @@ class DisLoss(nn.Module):
             prototypes = F.normalize(prototypes, dim=1)
             self.prototypes = prototypes
 
-class RegressionLoss(nn.Module):
+class LossReg(nn.Module):
     def __init__(self, args):
-        super(RegressionLoss, self).__init__()
+        super(LossReg, self).__init__()
         self.P_upper = torch.zeros(args.feat_dim).cuda()
         self.P_upper[0] = 1
         self.layer_type = args.layer_type
@@ -249,14 +239,14 @@ class RegressionLoss(nn.Module):
             loss = ((feat_dot_prototype - r) ** 2).mean()
             pred = (feat_dot_prototype > 0).long()
         return loss, pred
-class ClassificationLoss(nn.Module):
+class LossCla(nn.Module):
     """
     DisLoss and CompLoss
     """
     def __init__(self, args, net, loader):
-        super(ClassificationLoss, self).__init__()
-        self.disLoss = DisLoss(args, net, loader, temperature=args.temperature)
-        self.comLoss = CompLoss(args, temperature=args.temperature)
+        super(LossCla, self).__init__()
+        self.disLoss = LossSep(args, net, loader, temperature=args.temperature)
+        self.comLoss = LossSim(args, temperature=args.temperature)
         self.w = args.w
         self.temperature = args.temperature
 

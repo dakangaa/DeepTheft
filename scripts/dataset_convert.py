@@ -1,5 +1,6 @@
 """
-将数据切段并预处理为同长度以加速数据加载
+
+This script shreds and preprocesses the data to the same length to speed up data loading, ultimately generating an h5 file.
 """
 import h5py
 import numpy as np
@@ -43,7 +44,7 @@ class CopyPad(torch.nn.Module):
         indices = np.arange(self.length) % inputs.shape[0]
         out = inputs[indices].transpose([1, 0])
         return out
-    
+
 def signal_cut(layer_type, domain):
     # 将整段信号逐层剪切
     data_x, data_y = [], []
@@ -115,7 +116,7 @@ def preprocess(layer_type):
                     ds = _d['data'][kk]
                     orig_bytes += int(np.prod(ds.shape)) * np.dtype(ds.dtype).itemsize
         print(domain_str, 'orig_data bytes (sum of datasets matching domain):', orig_bytes)
-        
+
         signal_domains[index_domain_dict[dom]] = signal_stack
         hp_domains[index_domain_dict[dom]] = hp_stack
     print(signal_nums)

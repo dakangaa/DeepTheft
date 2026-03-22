@@ -1,4 +1,3 @@
-import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -43,31 +42,14 @@ class DownBlock(nn.Module):
 class FinalBlock(nn.Module):
     def __init__(self, in_channels, args):
         super().__init__()
-        self.classifier = nn.Sequential(
+        self.head = nn.Sequential(
             nn.AdaptiveAvgPool1d(1),
             nn.Flatten(),
-            nn.Dropout(0.1),
-            nn.Linear(in_channels, args.num_classes),
+            nn.Linear(in_channels, args.feat_dim)
         )
-        if args.head == "mlp":
-            self.head = nn.Sequential(
-                nn.AdaptiveAvgPool1d(1),
-                nn.Flatten(),
-                nn.Linear(in_channels, in_channels),
-                nn.ReLU(),
-                nn.Linear(in_channels, args.feat_dim)
-            )
-        elif args.head == "linear":
-            self.head = nn.Sequential(
-                nn.AdaptiveAvgPool1d(1),
-                nn.Flatten(),
-                nn.Linear(in_channels, args.feat_dim)
-            )
 
     def forward(self, x):
-        # if self.pretrain:
-        #     out = self.classifier(x)
-        # else:
+
         out = self.head(x)
 
         return out

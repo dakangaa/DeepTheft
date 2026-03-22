@@ -1,4 +1,4 @@
-import MateModel_Hyper
+import model
 import torch
 import dataset
 import argparse
@@ -76,15 +76,15 @@ def test(args):
     if args.regression:
         path = args.path + '/' + args.layer_type + "_" + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + test_domain_str + "_" + "regression" + '_ckpt.pth'
     else:
-        path = args.path + '/' + args.layer_type + "_" + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + test_domain_str + "_" + "train" + '_ckpt.pth'
+        path = args.path + '/' + args.layer_type + "_" + args.HyperParameter + "_" + str(args.origin_domain_num) + "_" + test_domain_str + "_" + "classification" + '_ckpt.pth'
     print(f"load path : {path}")
     check_point = torch.load(path, weights_only=False)
     if args.regression:
         prototypes = torch.zeros(args.feat_dim).cuda()
         prototypes[0] = 1
     else:
-        prototypes = check_point["loss"]["disLoss.prototypes"]
-    net = MateModel_Hyper.Model(args, input_channels=2)
+        prototypes = check_point["loss"]["LossSep.prototypes"]
+    net = model.Model(args, input_channels=2)
     net.load_state_dict(check_point["net"])
     net.to(device)
     last_acc = check_point["acc"]
@@ -95,59 +95,22 @@ def test(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Test on unknown input_size')
     # test
-    parser.add_argument("--layer_type", type=str, default="conv2d", help="layer_type which hyperParameter is belong to")
-    parser.add_argument("--HyperParameter", "-H", default="stride", type=str, help="测试的超参数")   # option: kernel_size, stride, out_channels
-    parser.add_argument("--origin_domain_num", "-o", default=4, type=int, help="训练的源域数量")
-    parser.add_argument("--test_domain", default="331", type=str, help="目标域")
+    parser.add_argument("--layer_type", type=str, default="conv2d", help="layer_type which hyperParameter is belong to, should be one of conv2d, max_pool2d, linear")
+    parser.add_argument("--HyperParameter", "-H", default="out_channels", type=str, help="hyperparameter to predict")   # option: kernel_size, stride, out_channels
+    parser.add_argument("--test_domain", default="331", type=str, help="target domain for testing, should be one of 160, 192, 224, 299, 331")
+    parser.add_argument("--origin_domain_num", "-o", default=4, type=int, help="number of origin domains") # 源域在除了测试域的剩余域中顺序取
 
     # data
-    parser.add_argument('--path', default='results/MateModel_Hyper', type=str, help='load_path')
-    parser.add_argument('--data_path', default='dataset/new_dataset', type=str)
-    parser.add_argument('--prefetch_factor', default=2, type=int, help='prefetch number of one loader worker')
+    parser.add_argument('--path', default='results/MateModel_Hyper', type=str, help='save path for checkpoint')
+    parser.add_argument('--data_path', default='dataset/new_dataset', type=str, help='path for dataset')
     parser.add_argument('--workers', default=3, type=int, help='number of data loading workers')
+    parser.add_argument('--prefetch_factor', default=2, type=int, help='prefetch number of one loader worker')
     parser.add_argument('--batch_size', default=1280, type=int, help='mini-batch size')
 
     # model
-    parser.add_argument('--head', default='mlp', type=str, help='mlp or linear head')
     parser.add_argument('--feat_dim', default = 128, type=int, help='feature dim')
 
+
     args = parser.parse_args()
-    ws = [0.1, 0.5, 1.0, 2.0, 5.0]
-    proto_ms = [0.5, 0.8, 0.9, 0.95, 0.99]
-    ts = [0.01, 0.05, 0.1, 0.2, 0.5]
 
-    test_domains = ["160", "192", "224", "299", "331"]
-    table = {"test_domain": test_domains}
-    mean_row = {
-        'test_domain': 'mean'
-    }
-    model_dir = "results/ts"
-    for t in ts:
-        args.path = os.path.join(model_dir, f"{t:.2f}")
-        # accs = list()
-        f1s = list()
-        for args.test_domain in test_domains:
-            _1, _2 = test(args)
-            # accs.append(_1)
-            f1s.append(_2)
-        table[f"t={t:.2f}"] = f1s
-        mean_row[f"t={t:.2f}"] = np.mean(f1s)
-
-
-
-
-    # 保存到 Excel
-    os.makedirs("results", exist_ok=True)
-    df = pd.DataFrame(table)
-    df.loc[len(df)] = mean_row
-    excel_path = 'results/parameter_sensitivity.xlsx'
-    try:
-        if os.path.exists(excel_path):
-            with pd.ExcelWriter(excel_path, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
-                df.to_excel(writer, index=False, sheet_name="t")
-        else:
-            with pd.ExcelWriter(excel_path, engine='openpyxl', mode='w') as writer:
-                df.to_excel(writer, index=False, sheet_name="t")
-        print(f"Saved results to {excel_path}")
-    except Exception as e:
-        print(f"Failed to write Excel file: {e}")
+    acc, f1 = test(args)
